@@ -94,7 +94,7 @@ public final class HeartbeatRunner extends Thread {
                     this.startPromise.set(promise);
                     this.start();
                 } catch (IllegalThreadStateException ignored) {
-                    promise.reject(illegalState("Unexpected state on start: " + preStartPointState));
+                    promise.reject(illegalState("unexpected state on start: " + preStartPointState));
                 }
             } else {
                 promise.reject(illegalState("onResume callback is not initialized"));
@@ -106,7 +106,7 @@ public final class HeartbeatRunner extends Thread {
 
     public void stop(Promise promise) {
         if (isInterrupted()) {
-            promise.reject(illegalState("Already interrupted"));
+            promise.reject(illegalState("already interrupted"));
         } else if (!isAlive()) {
             promise.reject(illegalState("HeartbeatRunner died"));
         } else {
