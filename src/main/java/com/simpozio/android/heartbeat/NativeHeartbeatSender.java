@@ -1,13 +1,16 @@
 package com.simpozio.android.heartbeat;
 
 import com.facebook.react.bridge.*;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 public final class NativeHeartbeatSender extends ReactContextBaseJavaModule {
 
-    private final HeartbeatRunner heartbeatRunner = new HeartbeatRunner();
+    private final HeartbeatRunner heartbeatRunner;
 
-    public NativeHeartbeatSender(ReactApplicationContext reactContext) {
-        super(reactContext);
+    public NativeHeartbeatSender(ReactApplicationContext context) {
+        super(context);
+        DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter = context.getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
+        this.heartbeatRunner = new HeartbeatRunner(eventEmitter);
     }
 
     @Override
@@ -16,40 +19,14 @@ public final class NativeHeartbeatSender extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void onResume(Callback callback) {
-        if (callback != null) {
-            this.heartbeatRunner.onResumeCallback.set(callback);
-        } else {
-            throw new IllegalArgumentException("callback is null");
-        }
-    }
-
-    @ReactMethod
-    public void onFail(Callback callback) {
-        if (callback != null) {
-            this.heartbeatRunner.onFailCallback.set(callback);
-        } else {
-            throw new IllegalArgumentException("callback is null");
-        }
-    }
-
-    @ReactMethod
-    public void start(ReadableMap metadata, Promise promise) {
+    public void start(ReadableMap metadata) {
         this.updateMetadata(metadata);
-        if (promise != null) {
-            this.heartbeatRunner.start(promise);
-        } else {
-            throw new IllegalArgumentException("promise is null");
-        }
+        this.heartbeatRunner.start();
     }
 
     @ReactMethod
-    public void stop(Promise promise) {
-        if (promise != null) {
-            this.heartbeatRunner.stop(promise);
-        } else {
-            throw new IllegalArgumentException("promise is null");
-        }
+    public void stop() {
+        this.heartbeatRunner.interrupt();
     }
 
     @ReactMethod
@@ -58,10 +35,6 @@ public final class NativeHeartbeatSender extends ReactContextBaseJavaModule {
     }
 
     private void updateMetadata(ReadableMap metadata) {
-        if (metadata != null) {
-            this.heartbeatRunner.metadata.set(metadata);
-        } else {
-            throw new IllegalArgumentException("metadata is null");
-        }
+        this.heartbeatRunner.metadata.set(metadata);
     }
 }
