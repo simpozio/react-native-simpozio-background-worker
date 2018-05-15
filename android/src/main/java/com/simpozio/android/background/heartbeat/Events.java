@@ -1,4 +1,4 @@
-package com.simpozio.android.heartbeat;
+package com.simpozio.android.background.heartbeat;
 
 import com.facebook.react.bridge.*;
 
@@ -6,13 +6,13 @@ public final class Events {
 
     public static final String EVENT_TYPE = "type";
 
-    private static final String UNSUCCESSFULLY_RESPONSE = "UnsuccessfullyResponse";
-    private static final String START_FAILED = "StartFailed";
-    private static final String STOP_FAILED = "StopFailed";
-    private static final String EXCEPTION = "Exception";
-    private static final String STARTED = "Started";
-    private static final String STOPPED = "Stopped";
-    private static final String RESUME = "Resume";
+    private static final String UNSUCCESSFULLY_RESPONSE = "unsuccessfullyResponse";
+    private static final String START_FAILED = "startFailed";
+    private static final String STOP_FAILED = "stopFailed";
+    private static final String EXCEPTION = "exception";
+    private static final String STARTED = "started";
+    private static final String STOPPED = "stopped";
+    private static final String RESUME = "resume";
 
     private static final String TIMESTAMP_FIELD = "timestamp";
 
@@ -23,7 +23,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "Exception", // discriminator
+     *     "type"      : "exception", // discriminator
      *     "timestamp" : "string",    // event timestamp
      *     "cause"     : "string",    // Exception type canonical name
      *     "message"   : "string"     // Exception comment message
@@ -41,7 +41,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "UnsuccessfullyResponse", // discriminator
+     *     "type"      : "unsuccessfullyResponse", // discriminator
      *     "timestamp" : "string",                 // event timestamp
      *     "message"   : "string",                 // response message
      *     "code"      : "string"                  // response code
@@ -59,7 +59,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "Resume",  // discriminator
+     *     "type"      : "resume",  // discriminator
      *     "timestamp" : "string",  // event timestamp
      *     "duration"  : "string"   // duration from last fail
      * }
@@ -75,7 +75,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "Started",   // discriminator
+     *     "type"      : "started",   // discriminator
      *     "timestamp" : "string"    // event timestamp
      * }
      */
@@ -88,7 +88,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "Stopped", // discriminator
+     *     "type"      : "stopped", // discriminator
      *     "timestamp" : "string",  // event timestamp
      *     "uptime"    : "string"   // uptime duration of the HeartbeatRunner
      * }
@@ -104,7 +104,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "StartFailed", // discriminator
+     *     "type"      : "startFailed", // discriminator
      *     "timestamp" : "string",      // event timestamp
      *     "cause"     : "string",      // Exception type canonical name
      *     "message"   : "string"       // Exception comment message
@@ -122,7 +122,7 @@ public final class Events {
     /**
      * @return event-object with next structure:
      * {
-     *     "type"      : "StopFailed",  // discriminator
+     *     "type"      : "stopFailed",  // discriminator
      *     "timestamp" : "string",      // event timestamp
      *     "cause"     : "string",      // Exception type canonical name
      *     "message"   : "string"       // Exception comment message
@@ -135,7 +135,7 @@ public final class Events {
         event.putString("message", cause.getMessage());
         return event;
     }
-    
+
     private static WritableMap createEvent(String type) {
         WritableMap event = Arguments.createMap();
         event.putString(EVENT_TYPE, type);

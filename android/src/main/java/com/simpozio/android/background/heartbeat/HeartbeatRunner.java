@@ -1,7 +1,8 @@
-package com.simpozio.android.heartbeat;
+package com.simpozio.android.background.heartbeat;
 
 import com.facebook.react.modules.core.DeviceEventManagerModule;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.facebook.react.bridge.*;
@@ -10,13 +11,11 @@ import org.json.*;
 
 import okhttp3.*;
 
-import static com.simpozio.android.heartbeat.Events.EVENT_TYPE;
+import static com.simpozio.android.background.heartbeat.Events.EVENT_TYPE;
 
 public final class HeartbeatRunner extends Thread {
 
     private static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
-
-    private static final long HEARTBEAT_PERIOD_MS = 3000;
 
     public static final String[] REQUEST_BODY_FIELDS = {
             "touchpoint",
@@ -36,6 +35,7 @@ public final class HeartbeatRunner extends Thread {
     };
 
     public final AtomicReference<ReadableMap> metadata = new AtomicReference<>(null);
+    public final AtomicReference<Long> nextHeartbeatPeriodMs = new AtomicReference<>(5000L);  // default is 5s
 
     private final DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
 
@@ -67,7 +67,7 @@ public final class HeartbeatRunner extends Thread {
         while (!isInterrupted()) {
             try {
                 try {
-                    Response response = httpClient.newCall(prepareRequest(this.metadata.get())).execute();
+                    Response response = httpClient.newCall(prepareRequest()).execute();
                     if (!response.isSuccessful()) {
                         this.onUnsuccessfullyResponse(response.code(), response.message());
                         lastFailed = System.currentTimeMillis();
@@ -79,7 +79,7 @@ public final class HeartbeatRunner extends Thread {
                     this.onException(cause);
                     lastFailed = System.currentTimeMillis();
                 }
-                Thread.sleep(HEARTBEAT_PERIOD_MS);
+                Thread.sleep(this.nextHeartbeatPeriodMs.get());
             } catch (InterruptedException ignored) {
                 this.interrupt(); // set flag
             }
@@ -129,18 +129,15 @@ public final class HeartbeatRunner extends Thread {
         this.eventEmitter.emit(event.getString(EVENT_TYPE), event);
     }
 
+    private Request prepareRequest() throws JSONException {
 
-    private static IllegalStateException illegalState(String message) {
-        return new IllegalStateException(message);
-    }
-
-    private static Request prepareRequest(ReadableMap metadata) throws JSONException {
-
-        String now = Date.now();
+        ReadableMap metadata = this.metadata.get();
 
         if (metadata == null) {
             throw new IllegalStateException("metadata is null");
         }
+
+        this.nextHeartbeatPeriodMs.set(this.acceptHeartbeatPeriod(metadata));
 
         Request.Builder requestBuilder = new Request.Builder();
 
@@ -148,12 +145,32 @@ public final class HeartbeatRunner extends Thread {
             requestBuilder.header(headerField, metadata.getString(headerField));
         }
 
+        String now = Date.now();
+
         requestBuilder.header("Date", now);
 
         return requestBuilder
                 .url(metadata.getString("url"))
                 .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(metadata, now))) // pass the same atomic
                 .build();
+    }
+
+    private Long acceptHeartbeatPeriod(ReadableMap metadata) {
+
+        String rawNext = metadata.getString("next").trim();
+
+        char timeUnit = rawNext.charAt(rawNext.length() - 1);
+
+        switch (timeUnit) {
+            case 's':
+                return TimeUnit.SECONDS.toMillis(Long.parseLong(rawNext.replace("s", "")));
+            case 'm':
+                return TimeUnit.MINUTES.toMillis(Long.parseLong(rawNext.replace("m", "")));
+            default: {
+                this.fireEvent(Events.exception(illegalArgument("unknown time-unit in field \"next\": " + timeUnit)));
+                return 5000L; // return default value
+            }
+        }
     }
 
     private static String prepareRequestBodyContent(ReadableMap metadata, String timestamp) throws JSONException {
@@ -167,5 +184,13 @@ public final class HeartbeatRunner extends Thread {
         return content
                 .put("timestamp", timestamp)
                 .toString();
+    }
+
+    private static IllegalStateException illegalState(String message) {
+        return new IllegalStateException(message);
+    }
+
+    private static IllegalArgumentException illegalArgument(String message) {
+        return new IllegalArgumentException(message);
     }
 }

@@ -1,0 +1,11 @@
+<manifest xml:android="http://schemas.android.com/apk/res/android"
+    package="com.simpozio.android.background"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <application>
+        <service android:name=".heartbeat.HeartbeatService"/>
+    </application>
+</manifest>
