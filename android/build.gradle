@@ -38,6 +38,6 @@ repositories {
 }
 
 dependencies {
-  compile 'com.facebook.react:react-native:0.20.1'
+  compile 'com.facebook.react:react-native:+'
   compile 'com.squareup.okhttp3:okhttp:3.10.0'
 }
