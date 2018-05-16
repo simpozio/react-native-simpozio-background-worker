@@ -39,5 +39,6 @@ repositories {
 
 dependencies {
   compile 'com.facebook.react:react-native:+'
+  compile 'joda-time:joda-time:2.9.9'
   compile 'com.squareup.okhttp3:okhttp:3.10.0'
 }

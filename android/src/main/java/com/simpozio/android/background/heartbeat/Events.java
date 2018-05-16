@@ -1,6 +1,9 @@
 package com.simpozio.android.background.heartbeat;
 
-import com.facebook.react.bridge.*;
+import android.os.Bundle;
+
+import com.facebook.react.bridge.Arguments;
+import com.facebook.react.bridge.WritableMap;
 
 public final class Events {
 
@@ -9,6 +12,7 @@ public final class Events {
     private static final String UNSUCCESSFULLY_RESPONSE = "unsuccessfullyResponse";
     private static final String START_FAILED = "startFailed";
     private static final String STOP_FAILED = "stopFailed";
+    private static final String UNKNOWN_URL = "unknownUrl";
     private static final String EXCEPTION = "exception";
     private static final String STARTED = "started";
     private static final String STOPPED = "stopped";
@@ -30,8 +34,8 @@ public final class Events {
      * }
      */
 
-    public static WritableMap exception(Exception cause) {
-        WritableMap event = createEvent(EXCEPTION);
+    public static Bundle exception(Exception cause) {
+        Bundle event = createEvent(EXCEPTION);
         event.putString("cause", cause.getClass().getCanonicalName());
         event.putString("message", cause.getMessage());
         return event;
@@ -48,8 +52,8 @@ public final class Events {
      * }
      */
 
-    public static WritableMap unsuccessfullyResponse(int code, String message) {
-        WritableMap event = createEvent(UNSUCCESSFULLY_RESPONSE);
+    public static Bundle unsuccessfullyResponse(int code, String message) {
+        Bundle event = createEvent(UNSUCCESSFULLY_RESPONSE);
         event.putString("message", message);
         event.putString("code", String.valueOf(code));
         return event;
@@ -65,8 +69,8 @@ public final class Events {
      * }
      */
 
-    public static WritableMap resume(long durationFromLastFail) {
-        WritableMap event = createEvent(RESUME);
+    public static Bundle resume(long durationFromLastFail) {
+        Bundle event = createEvent(RESUME);
         event.putString("duration", String.valueOf(durationFromLastFail));
         return acceptTimestamp(event);
     }
@@ -80,7 +84,7 @@ public final class Events {
      * }
      */
 
-    public static WritableMap started() {
+    public static Bundle started() {
         return createEvent(STARTED);
     }
 
@@ -94,8 +98,8 @@ public final class Events {
      * }
      */
 
-    public static WritableMap stopped(long uptime) {
-        WritableMap event = createEvent(STOPPED);
+    public static Bundle stopped(long uptime) {
+        Bundle event = createEvent(STOPPED);
         event.putString("uptime", String.valueOf(uptime));
         return event;
     }
@@ -111,8 +115,8 @@ public final class Events {
      * }
      */
 
-    public static WritableMap startFailed(Exception cause) {
-        WritableMap event = createEvent(START_FAILED);
+    public static Bundle startFailed(Exception cause) {
+        Bundle event = createEvent(START_FAILED);
         event.putString("cause", cause.getClass().getCanonicalName());
         event.putString("message", cause.getMessage());
         return event;
@@ -129,21 +133,45 @@ public final class Events {
      * }
      */
 
-    public static WritableMap stopFailed(Exception cause) {
-        WritableMap event = createEvent(STOP_FAILED);
+    public static Bundle stopFailed(Exception cause) {
+        Bundle event = createEvent(STOP_FAILED);
         event.putString("cause", cause.getClass().getCanonicalName());
         event.putString("message", cause.getMessage());
         return event;
     }
 
-    private static WritableMap createEvent(String type) {
+
+    /**
+     * @return event-object with next structure:
+     * {
+     *     "type"      : "unknownUrl",  // discriminator
+     *     "timestamp" : "string",      // event timestamp
+     *     "url"       : "string",
+     * }
+     */
+
+    public static Bundle unknownUrl(String url) {
+        Bundle event = createEvent(UNKNOWN_URL);
+        event.putString("url", url);
+        return acceptTimestamp(event);
+    }
+
+    public static WritableMap toWritableMap(Bundle eventBundle) {
         WritableMap event = Arguments.createMap();
+        for (String key : eventBundle.keySet()) {
+            event.putString(key, eventBundle.getString(key));
+        }
+        return event;
+    }
+
+    private static Bundle createEvent(String type) {
+        Bundle event = new Bundle();
         event.putString(EVENT_TYPE, type);
         return acceptTimestamp(event);
     }
 
-    private static WritableMap acceptTimestamp(WritableMap event) {
-        event.putString(TIMESTAMP_FIELD, Date.now());
+    private static Bundle acceptTimestamp(Bundle event) {
+        event.putString(TIMESTAMP_FIELD, DateFormatted.now().timestamp());
         return event;
     }
 }

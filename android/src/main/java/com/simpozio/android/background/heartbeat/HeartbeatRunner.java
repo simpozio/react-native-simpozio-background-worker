@@ -1,48 +1,37 @@
 package com.simpozio.android.background.heartbeat;
 
-import com.facebook.react.modules.core.DeviceEventManagerModule;
+import android.os.Bundle;
 
-import java.util.concurrent.TimeUnit;
+import org.joda.time.format.PeriodFormatter;
+import org.joda.time.format.PeriodFormatterBuilder;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.facebook.react.bridge.*;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-import org.json.*;
-
-import okhttp3.*;
-
-import static com.simpozio.android.background.heartbeat.Events.EVENT_TYPE;
-
-public final class HeartbeatRunner extends Thread {
+public class HeartbeatRunner extends Thread implements EventPublisher {
 
     private static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
+    private static final PeriodFormatter PERIOD_FORMATTER = createPeriodFormatter();
 
-    public static final String[] REQUEST_BODY_FIELDS = {
-            "touchpoint",
-            "state",
-            "screen",
-            "connection",
-            "bandwidth",
-            "payload",
-            "next"
-    };
+    public final AtomicReference<Bundle> requestBody = new AtomicReference<>(null);
+    public final AtomicReference<String> simpozioAddress = new AtomicReference<>(null);
+    public final AtomicReference<Bundle> headers = new AtomicReference<>(null);
+    public final AtomicReference<String> url = new AtomicReference<>(null);
 
-    public static final String[] HEADER_FIELDS = {
-            "Authorization",
-            "User-Agent",
-            "Accept-Language",
-            "X-HTTP-Method-Override"
-    };
+    private final EventPublisher eventPublisher;
 
-    public final AtomicReference<ReadableMap> metadata = new AtomicReference<>(null);
-    public final AtomicReference<Long> nextHeartbeatPeriodMs = new AtomicReference<>(5000L);  // default is 5s
-
-    private final DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
-
+    private long nextHeartbeatPeriodMs = 5000L;
     private boolean failed = false;
 
-    public HeartbeatRunner(DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter) {
-        this.eventEmitter = eventEmitter;
+    public HeartbeatRunner(EventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -50,8 +39,7 @@ public final class HeartbeatRunner extends Thread {
         try {
             super.start();
         } catch (IllegalThreadStateException ignored) {
-            IllegalStateException cause = new IllegalStateException("unexpected state on start: " + this.getState());
-            this.fireEvent(Events.startFailed(cause));
+            this.fireEvent(Events.startFailed(illegalState("unexpected state on start: " + this.getState())));
         }
     }
 
@@ -79,7 +67,7 @@ public final class HeartbeatRunner extends Thread {
                     this.onException(cause);
                     lastFailed = System.currentTimeMillis();
                 }
-                Thread.sleep(this.nextHeartbeatPeriodMs.get());
+                Thread.sleep(this.nextHeartbeatPeriodMs);
             } catch (InterruptedException ignored) {
                 this.interrupt(); // set flag
             }
@@ -96,6 +84,11 @@ public final class HeartbeatRunner extends Thread {
         } else {
             super.interrupt();
         }
+    }
+
+    @Override
+    public void fireEvent(Bundle event) {
+        this.eventPublisher.fireEvent(event);
     }
 
     private long started() {
@@ -125,65 +118,49 @@ public final class HeartbeatRunner extends Thread {
         }
     }
 
-    private void fireEvent(WritableMap event) {
-        this.eventEmitter.emit(event.getString(EVENT_TYPE), event);
-    }
-
     private Request prepareRequest() throws JSONException {
 
-        ReadableMap metadata = this.metadata.get();
+        // DIRTY READING ON UPDATE IS POSSIBLE!
 
-        if (metadata == null) {
-            throw new IllegalStateException("metadata is null");
+        Bundle headers = this.headers.get();
+        Bundle requestBody = this.requestBody.get();
+
+        if (headers == null || requestBody == null) {
+            throw new IllegalStateException("data is null");
         }
 
-        this.nextHeartbeatPeriodMs.set(this.acceptHeartbeatPeriod(metadata));
+        this.nextHeartbeatPeriodMs = this.acceptHeartbeatPeriod(requestBody);
 
         Request.Builder requestBuilder = new Request.Builder();
 
-        for (String headerField : HEADER_FIELDS) {
-            requestBuilder.header(headerField, metadata.getString(headerField));
+        for (String key : headers.keySet()) {
+            requestBuilder.header(key, headers.getString(key));
         }
 
-        String now = Date.now();
+        DateFormatted now = DateFormatted.now();
 
-        requestBuilder.header("Date", now);
+        requestBuilder.header("Date", now.date());
 
         return requestBuilder
-                .url(metadata.getString("url"))
-                .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(metadata, now))) // pass the same atomic
+                .url(simpozioAddress.get() + url.get())
+                .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(requestBody)))
                 .build();
     }
 
-    private Long acceptHeartbeatPeriod(ReadableMap metadata) {
-
-        String rawNext = metadata.getString("next").trim();
-
-        char timeUnit = rawNext.charAt(rawNext.length() - 1);
-
-        switch (timeUnit) {
-            case 's':
-                return TimeUnit.SECONDS.toMillis(Long.parseLong(rawNext.replace("s", "")));
-            case 'm':
-                return TimeUnit.MINUTES.toMillis(Long.parseLong(rawNext.replace("m", "")));
-            default: {
-                this.fireEvent(Events.exception(illegalArgument("unknown time-unit in field \"next\": " + timeUnit)));
-                return 5000L; // return default value
-            }
-        }
+    private long acceptHeartbeatPeriod(Bundle metadata) {
+        return (long) PERIOD_FORMATTER.parsePeriod(metadata.getString("next").trim()).getMillis();
     }
 
-    private static String prepareRequestBodyContent(ReadableMap metadata, String timestamp) throws JSONException {
-
-        JSONObject content = new JSONObject();
-
-        for (String requestBodyField : REQUEST_BODY_FIELDS) {
-            content.put(requestBodyField, metadata.getString(requestBodyField));
+    private static String prepareRequestBodyContent(Bundle metadata) throws JSONException {
+        if (metadata.containsKey("touchpoint") && metadata.containsKey("state") && metadata.containsKey("timestamp")) {
+            throw illegalArgument("touchpoint, state, timestamp are required field");
+        } else {
+            JSONObject content = new JSONObject();
+            for (String key : metadata.keySet()) {
+                content.put(key, metadata.getString(key));
+            }
+            return content.toString();
         }
-
-        return content
-                .put("timestamp", timestamp)
-                .toString();
     }
 
     private static IllegalStateException illegalState(String message) {
@@ -192,5 +169,16 @@ public final class HeartbeatRunner extends Thread {
 
     private static IllegalArgumentException illegalArgument(String message) {
         return new IllegalArgumentException(message);
+    }
+
+    private static PeriodFormatter createPeriodFormatter() {
+        return new PeriodFormatterBuilder()
+                .appendDays()
+                .appendSuffix("d")
+                .appendHours()
+                .appendSuffix("h")
+                .appendMinutes()
+                .appendSuffix("m")
+                .toFormatter();
     }
 }
