@@ -1,4 +1,4 @@
-package com.simpozio.android.background.heartbeat;
+package com.simpozio.android.background.event;
 
 import android.os.Bundle;
 

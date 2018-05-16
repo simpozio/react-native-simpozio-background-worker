@@ -1,38 +1,36 @@
-package com.simpozio.android.background.heartbeat;
+package com.simpozio.android.background.http;
 
 import android.os.Bundle;
 
-import org.joda.time.format.PeriodFormatter;
-import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
+import com.simpozio.android.background.event.EventPublisher;
+import com.simpozio.android.background.event.Events;
 
-public class HeartbeatRunner extends Thread implements EventPublisher {
+import okhttp3.*;
 
-    private static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
-    private static final PeriodFormatter PERIOD_FORMATTER = createPeriodFormatter();
+public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
-    public final AtomicReference<Bundle> requestBody = new AtomicReference<>(null);
+    public static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
+
     public final AtomicReference<String> simpozioAddress = new AtomicReference<>(null);
+    public final AtomicReference<Bundle> requestBody = new AtomicReference<>(null);
     public final AtomicReference<Bundle> headers = new AtomicReference<>(null);
     public final AtomicReference<String> url = new AtomicReference<>(null);
 
-    private final EventPublisher eventPublisher;
+    public volatile long eventLoopPeriodMs = 5000L;
 
-    private long nextHeartbeatPeriodMs = 5000L;
     private boolean failed = false;
 
-    public HeartbeatRunner(EventPublisher eventPublisher) {
+    private final EventPublisher eventPublisher;
+
+    public AsyncHttpAgent(EventPublisher eventPublisher) {
         this.eventPublisher = eventPublisher;
     }
+
+    public abstract Request prepareRequest() throws JSONException;
 
     @Override
     public void start() {
@@ -67,7 +65,7 @@ public class HeartbeatRunner extends Thread implements EventPublisher {
                     this.onException(cause);
                     lastFailed = System.currentTimeMillis();
                 }
-                Thread.sleep(this.nextHeartbeatPeriodMs);
+                Thread.sleep(this.eventLoopPeriodMs);
             } catch (InterruptedException ignored) {
                 this.interrupt(); // set flag
             }
@@ -118,67 +116,12 @@ public class HeartbeatRunner extends Thread implements EventPublisher {
         }
     }
 
-    private Request prepareRequest() throws JSONException {
-
-        // DIRTY READING ON UPDATE IS POSSIBLE!
-
-        Bundle headers = this.headers.get();
-        Bundle requestBody = this.requestBody.get();
-
-        if (headers == null || requestBody == null) {
-            throw new IllegalStateException("data is null");
-        }
-
-        this.nextHeartbeatPeriodMs = this.acceptHeartbeatPeriod(requestBody);
-
-        Request.Builder requestBuilder = new Request.Builder();
-
-        for (String key : headers.keySet()) {
-            requestBuilder.header(key, headers.getString(key));
-        }
-
-        DateFormatted now = DateFormatted.now();
-
-        requestBuilder.header("Date", now.date());
-
-        return requestBuilder
-                .url(simpozioAddress.get() + url.get())
-                .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(requestBody)))
-                .build();
-    }
-
-    private long acceptHeartbeatPeriod(Bundle metadata) {
-        return (long) PERIOD_FORMATTER.parsePeriod(metadata.getString("next").trim()).getMillis();
-    }
-
-    private static String prepareRequestBodyContent(Bundle metadata) throws JSONException {
-        if (metadata.containsKey("touchpoint") && metadata.containsKey("state") && metadata.containsKey("timestamp")) {
-            throw illegalArgument("touchpoint, state, timestamp are required field");
-        } else {
-            JSONObject content = new JSONObject();
-            for (String key : metadata.keySet()) {
-                content.put(key, metadata.getString(key));
-            }
-            return content.toString();
-        }
-    }
-
-    private static IllegalStateException illegalState(String message) {
+    protected static IllegalStateException illegalState(String message) {
         return new IllegalStateException(message);
     }
 
-    private static IllegalArgumentException illegalArgument(String message) {
+    protected static IllegalArgumentException illegalArgument(String message) {
         return new IllegalArgumentException(message);
     }
 
-    private static PeriodFormatter createPeriodFormatter() {
-        return new PeriodFormatterBuilder()
-                .appendDays()
-                .appendSuffix("d")
-                .appendHours()
-                .appendSuffix("h")
-                .appendMinutes()
-                .appendSuffix("m")
-                .toFormatter();
-    }
 }

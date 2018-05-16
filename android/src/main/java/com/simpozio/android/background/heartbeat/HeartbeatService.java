@@ -4,30 +4,24 @@ import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.AssetManager;
 import android.os.Bundle;
 import android.os.IBinder;
 
 import com.simpozio.android.background.ServiceURL;
+import com.simpozio.android.background.event.EventPublisher;
+import com.simpozio.android.background.http.AsyncHttpAgent;
 
-import java.io.InputStream;
-import java.util.Properties;
+import static com.simpozio.android.background.SimpozioJavaService.FEEDBACK_EVENT_BUNDLE;
+import static com.simpozio.android.background.SimpozioJavaService.FEEDBACK_INTENT_ACTION;
+import static com.simpozio.android.background.SimpozioJavaService.HEADERS_EVENT_BUNDLE;
+import static com.simpozio.android.background.SimpozioJavaService.REQ_BODY_EVENT_BUNDLE;
+import static com.simpozio.android.background.SimpozioJavaService.SIMPOZIO_ADDRESS_EXTRA;
 
-import static com.simpozio.android.background.SimpozioNativeBackgroundService.FEEDBACK_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioNativeBackgroundService.FEEDBACK_INTENT_ACTION;
-import static com.simpozio.android.background.SimpozioNativeBackgroundService.HEADERS_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioNativeBackgroundService.REQ_BODY_EVENT_BUNDLE;
+public final class HeartbeatService extends Service implements EventPublisher {
 
-public class HeartbeatService extends Service implements EventPublisher {
+    private final AsyncHttpAgent httpAgent = new HeartbeatHttpAgent(this);
 
-    private final HeartbeatRunner heartbeatRunner = new HeartbeatRunner(this);
-
-    private final BroadcastReceiver receiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            updateRunner(intent);
-        }
-    };
+    private final BroadcastReceiver receiver = this.createReceiver();
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -36,16 +30,16 @@ public class HeartbeatService extends Service implements EventPublisher {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        this.updateRunner(intent);
-        this.heartbeatRunner.url.set(ServiceURL.HEARTBEAT_URL); // hardcode ?
-        this.heartbeatRunner.simpozioAddress.set(getSimpozioAddress());
-        this.heartbeatRunner.start();
+        this.updateAgent(intent);
+        this.httpAgent.simpozioAddress.set(intent.getStringExtra(SIMPOZIO_ADDRESS_EXTRA));
+        this.httpAgent.url.set(ServiceURL.HEARTBEAT_URL); // hardcode ?
+        this.httpAgent.start();
         return START_NOT_STICKY;
     }
 
     @Override
     public void onDestroy() {
-        this.heartbeatRunner.interrupt();
+        this.httpAgent.interrupt();
     }
 
     @Override
@@ -53,25 +47,18 @@ public class HeartbeatService extends Service implements EventPublisher {
         this.sendBroadcast(asFeedback(event));
     }
 
-    private void updateRunner(Intent intent) {
-        this.heartbeatRunner.headers.set(intent.getBundleExtra(HEADERS_EVENT_BUNDLE));
-        this.heartbeatRunner.requestBody.set(intent.getBundleExtra(REQ_BODY_EVENT_BUNDLE));
+    private void updateAgent(Intent intent) {
+        this.httpAgent.headers.set(intent.getBundleExtra(HEADERS_EVENT_BUNDLE));
+        this.httpAgent.requestBody.set(intent.getBundleExtra(REQ_BODY_EVENT_BUNDLE));
     }
 
-    private String getSimpozioAddress() {
-        try {
-            Properties properties = new Properties();
-            AssetManager assetManager = this.getAssets();
-            InputStream inputStream = assetManager.open("config.properties");
-            try {
-                properties.load(inputStream);
-            } finally {
-                inputStream.close();
+    private BroadcastReceiver createReceiver() {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                HeartbeatService.this.updateAgent(intent);
             }
-            return properties.getProperty("simpozio.address");
-        } catch (Exception e) {
-            throw new RuntimeException("cannot read properties: " + e.getMessage());
-        }
+        };
     }
 
     private static Intent asFeedback(Bundle eventBundle) {

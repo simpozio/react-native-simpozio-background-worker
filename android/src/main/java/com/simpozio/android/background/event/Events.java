@@ -1,9 +1,10 @@
-package com.simpozio.android.background.heartbeat;
+package com.simpozio.android.background.event;
 
 import android.os.Bundle;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
+import com.simpozio.android.background.heartbeat.DateFormatted;
 
 public final class Events {
 
