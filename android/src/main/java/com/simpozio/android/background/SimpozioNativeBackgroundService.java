@@ -53,13 +53,13 @@ public class SimpozioNativeBackgroundService extends ReactContextBaseJavaModule 
     }
 
     @ReactMethod
-    public void start(String url) {
+    public void start(String url, ReadableMap headers, ReadableMap requestBody) {
         switch (url) {
             case TRACE_URL:
                 this.startTraceService();
                 break;
             case HEARTBEAT_URL:
-                this.startHeartbeatService();
+                this.startHeartbeatService(headers, requestBody);
                 break;
             default: {
                 this.fireEvent(Events.unknownUrl(url));
@@ -119,11 +119,14 @@ public class SimpozioNativeBackgroundService extends ReactContextBaseJavaModule 
     }
 
     private void startTraceService() {
-        this.getReactApplicationContext().startService(getTraceServiceIntent());
+        throw new UnsupportedOperationException();
+//        this.getReactApplicationContext().startService(getTraceServiceIntent());
     }
 
-    private void startHeartbeatService() {
-        this.getReactApplicationContext().startService(getHeartbeatServiceIntent());
+    private void startHeartbeatService(ReadableMap headers, ReadableMap requestBody) {
+        Intent heartbeatServiceIntent = getHeartbeatServiceIntent();
+        acceptExtra(headers, requestBody, heartbeatServiceIntent);
+        this.getReactApplicationContext().startService(heartbeatServiceIntent);
     }
 
     private void stopTraceService() {
