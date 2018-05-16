@@ -1,21 +1,14 @@
 package com.simpozio.android.background.heartbeat;
 
 import android.app.Service;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.os.Bundle;
-import android.os.IBinder;
+import android.content.*;
 
-import com.simpozio.android.background.ServiceURL;
+import android.os.*;
+
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.http.AsyncHttpAgent;
 
-import static com.simpozio.android.background.SimpozioJavaService.FEEDBACK_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioJavaService.FEEDBACK_INTENT_ACTION;
-import static com.simpozio.android.background.SimpozioJavaService.HEADERS_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioJavaService.REQ_BODY_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioJavaService.SIMPOZIO_ADDRESS_EXTRA;
+import static com.simpozio.android.background.SimpozioJavaService.*;
 
 public final class HeartbeatService extends Service implements EventPublisher {
 
@@ -31,8 +24,6 @@ public final class HeartbeatService extends Service implements EventPublisher {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         this.updateAgent(intent);
-        this.httpAgent.simpozioAddress.set(intent.getStringExtra(SIMPOZIO_ADDRESS_EXTRA));
-        this.httpAgent.url.set(ServiceURL.HEARTBEAT_URL); // hardcode ?
         this.httpAgent.start();
         return START_NOT_STICKY;
     }
@@ -48,8 +39,9 @@ public final class HeartbeatService extends Service implements EventPublisher {
     }
 
     private void updateAgent(Intent intent) {
+        this.httpAgent.url.set(intent.getStringExtra(SIMPOZIO_URL_EXTRA));
         this.httpAgent.headers.set(intent.getBundleExtra(HEADERS_EVENT_BUNDLE));
-        this.httpAgent.requestBody.set(intent.getBundleExtra(REQ_BODY_EVENT_BUNDLE));
+        this.httpAgent.requestBody.set(intent.getBundleExtra(REQUEST_BODY_EVENT_BUNDLE));
     }
 
     private BroadcastReceiver createReceiver() {

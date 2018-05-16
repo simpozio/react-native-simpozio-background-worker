@@ -24,14 +24,17 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
     @Override
     public Request prepareRequest() throws JSONException {
 
-        Bundle headers = this.headers.get();
-        Bundle requestBody = this.requestBody.get();
+        Bundle requestBody = super.requestBody.get();
+        String simpozioUrl = super.url.get();
+        Bundle headers = super.headers.get();
 
         if (headers == null || requestBody == null) {
-            throw new IllegalStateException("data is null");
+            throw illegalState("data is null");
+        } else if (simpozioUrl == null) {
+            throw illegalState("url is null");
         }
 
-        this.eventLoopPeriodMs = nextHeartbeatPeriod(requestBody);
+        super.eventLoopPeriodMs = nextHeartbeatPeriod(requestBody);
 
         Request.Builder requestBuilder = new Request.Builder();
 
@@ -39,10 +42,9 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
             requestBuilder.header(key, headers.getString(key));
         }
 
-        requestBuilder.header("Date", DateFormatted.now().date());
-
         return requestBuilder
-                .url(simpozioAddress.get() + url.get())
+                .url(simpozioUrl)
+                .header("Date", DateFormatted.now().date())
                 .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(requestBody)))
                 .build();
     }
@@ -59,7 +61,7 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
             }
             return content.toString();
         } else {
-            throw illegalArgument("touchpoint, state, timestamp are required fields");
+            throw illegalState("touchpoint, state, timestamp are required fields");
         }
     }
 

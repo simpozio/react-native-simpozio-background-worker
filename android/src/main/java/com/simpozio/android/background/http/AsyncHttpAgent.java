@@ -15,7 +15,6 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
     public static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
 
-    public final AtomicReference<String> simpozioAddress = new AtomicReference<>(null);
     public final AtomicReference<Bundle> requestBody = new AtomicReference<>(null);
     public final AtomicReference<Bundle> headers = new AtomicReference<>(null);
     public final AtomicReference<String> url = new AtomicReference<>(null);
