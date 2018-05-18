@@ -1,0 +1,27 @@
+{
+  "name": "rn-simpozio-background-service",
+  "version": "0.0.1",
+  "description": "React Native Simpozio Background Service",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/smekalka/rn-simpozio-background-service.git"
+  },
+  "keywords": [
+    "react",
+    "native",
+    "simpozio",
+    "background"
+  ],
+  "author": "Dmitriy Korobov",
+  "bugs": {
+    "url": "https://github.com/smekalka/rn-simpozio-background-service/issues"
+  },
+  "homepage": "https://github.com/smekalka/rn-simpozio-background-service#readme",
+  "dependencies": {
+    "lodash": "^4.17.5"
+  }
+}
