@@ -7,6 +7,7 @@ import com.facebook.react.modules.core.DeviceEventManagerModule;
 import com.simpozio.android.background.event.Events;
 import com.simpozio.android.background.heartbeat.*;
 import com.facebook.react.bridge.*;
+import com.simpozio.android.background.trace.TraceService;
 
 import android.content.*;
 import android.os.*;
@@ -29,17 +30,21 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 
     public static final String SIMPOZIO_URL_EXTRA = "simpozio.url";
 
-    private final DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
+    private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
     private final PowerManager.WakeLock wakeLock;
 
     @SuppressLint("WakelockTimeout")
     public SimpozioJavaService(ReactApplicationContext context) {
         super(context);
-        this.eventEmitter = getEventEmitter();
         this.wakeLock = getWakeLock();
         this.wakeLock.acquire();
         //
-        context.registerReceiver(createReceiver(), getIntentFilter());
+        context.registerReceiver(createReceiver(), getFeedbackIntentFilter());
+    }
+
+    @Override
+    public void initialize() {
+        this.eventEmitter = this.getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
     }
 
     // React Native API
@@ -132,14 +137,12 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     private Intent toTraceIntent(ReadableMap metadata) {
         throw new UnsupportedOperationException();
 //        Intent metadataIntent = new Intent(TRACE_INTENT_ACTION);
-//        acceptExtra(metadata, metadataIntent);
-//        return metadataIntent;
+//        return acceptExtra(metadata, metadataIntent);
     }
 
     private Intent toHeartbeatIntent(ReadableMap metadata) {
         Intent metadataIntent = new Intent(HEARTBEAT_INTENT_ACTION);
-        acceptExtra(metadata, metadataIntent);
-        return metadataIntent;
+        return acceptExtra(metadata, metadataIntent);
     }
 
     private void stopTraceService() {
@@ -163,10 +166,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
         this.eventEmitter.emit(event.getString(EVENT_TYPE), event);
     }
 
-    private DeviceEventManagerModule.RCTDeviceEventEmitter getEventEmitter() {
-        return this.getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
-    }
-
     private PowerManager.WakeLock getWakeLock() {
         return ((PowerManager) this.getReactApplicationContext()
                 .getSystemService(POWER_SERVICE))
@@ -178,13 +177,38 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     }
 
     private Intent getTraceServiceIntent() {
-        return new Intent(getReactApplicationContext(), HeartbeatService.class);
+        return new Intent(getReactApplicationContext(), TraceService.class);
     }
 
-    private void acceptExtra(ReadableMap metadata, Intent metadataIntent) {
+    private static Intent acceptExtra(ReadableMap metadata, Intent metadataIntent) {
         // simpozio address
         metadataIntent.putExtra(SIMPOZIO_URL_EXTRA, metadata.getString("baseUrl") + metadata.getString("call"));
         // headers
+        acceptHeadersExtra(metadata, metadataIntent);
+        // request body
+        ReadableType requestBodyType = metadata.getType("requestBody");
+        if (requestBodyType.equals(ReadableType.Map)) {
+            acceptMapRequestBodyExtra(metadata, metadataIntent);
+        } else if (requestBodyType.equals(ReadableType.Array)) {
+            throw new UnsupportedOperationException();
+        } else {
+            throw new UnsupportedOperationException();
+        }
+        return metadataIntent;
+    }
+
+    private static void acceptMapRequestBodyExtra(ReadableMap metadata, Intent metadataIntent) {
+        ReadableMap requestBody = metadata.getMap("requestBody");
+        ReadableMapKeySetIterator requestBodyKeys = requestBody.keySetIterator();
+        Bundle requestBodyEventBundle = new Bundle();
+        while (requestBodyKeys.hasNextKey()) {
+            String key = requestBodyKeys.nextKey();
+            requestBodyEventBundle.putString(key, requestBody.getString(key));
+        }
+        metadataIntent.putExtra(REQUEST_BODY_EVENT_BUNDLE, requestBodyEventBundle);
+    }
+
+    private static void acceptHeadersExtra(ReadableMap metadata, Intent metadataIntent) {
         ReadableMap headers = metadata.getMap("headers");
         ReadableMapKeySetIterator headerKeys = headers.keySetIterator();
         Bundle headersEventBundle = new Bundle();
@@ -193,19 +217,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
             headersEventBundle.putString(key, headers.getString(key));
         }
         metadataIntent.putExtra(HEADERS_EVENT_BUNDLE, headersEventBundle);
-        // request body
-        if (metadata.getType("requestBody").equals(ReadableType.Map)) {
-            ReadableMap requestBody = metadata.getMap("requestBody");
-            ReadableMapKeySetIterator requestBodyKeys = requestBody.keySetIterator();
-            Bundle requestBodyEventBundle = new Bundle();
-            while (requestBodyKeys.hasNextKey()) {
-                String key = requestBodyKeys.nextKey();
-                requestBodyEventBundle.putString(key, headers.getString(key));
-            }
-            metadataIntent.putExtra(REQUEST_BODY_EVENT_BUNDLE, headersEventBundle);
-        } else {
-            throw new UnsupportedOperationException(); // TODO: implement trace
-        }
     }
 
 //    private static JSONArray convertArrayToJson(ReadableArray readableArray) throws JSONException {
@@ -234,7 +245,7 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 //        return array;
 //    }
 
-    private static IntentFilter getIntentFilter() {
+    private static IntentFilter getFeedbackIntentFilter() {
         return new IntentFilter(FEEDBACK_INTENT_ACTION);
     }
 }
