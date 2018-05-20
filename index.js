@@ -1,5 +1,5 @@
 let _ = require('lodash');
-let {NativeModules, DeviceEventEmitter} =  require('react-native');
+let {NativeModules, DeviceEventEmitter} = require('react-native');
 let SimpozioJavaService = NativeModules.SimpozioJavaService;
 
 let listeners = {};
@@ -42,7 +42,7 @@ let eventPromiseHelper = (eventSuccess, eventFailed) => {
             return reject(error);
         });
 
-        waitForException = DeviceEventEmitter.addListener(exception, (error) => {
+        waitForException = DeviceEventEmitter.addListener(EVENT_EXCEPTION, (error) => {
             waitForFailed.remove();
             waitForException.remove();
             waitFor.remove();
@@ -87,10 +87,10 @@ let removeAllListeners = (key) => {
 
 let updateMetadata = (metadata) => {
     currentMetadata = _.assign({}, currentMetadata, {
-        baseUrl: currentMetadata.baseUrl,
+        baseUrl: metadata.baseUrl,
         call: HEARTBEAT_URL,
         headers: _.assign({}, currentMetadata.headers, metadata.headers),
-        body: _.assign({}, currentMetadata.body, metadata.body),
+        requestBody: _.assign({}, currentMetadata.body, metadata.body),
     });
 
     return currentMetadata;
@@ -115,10 +115,15 @@ let startHeartbeat = (metadata) => {
         SimpozioJavaService.update(updateMetadata(metadata));
         return Promise.resolve();
     } else {
-        SimpozioJavaService.start(updateMetadata(metadata));
-        return eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
+        console.log('SimpozioJavaService.start', updateMetadata(metadata));
+
+        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
             isHeartbeatStarted = true;
         });
+
+        SimpozioJavaService.start(updateMetadata(metadata));
+
+        return eventPromise;
     }
 };
 
@@ -134,11 +139,13 @@ let stopHeartbeat = () => {
     if (!isHeartbeatStarted) {
         return Promise.resolve();
     } else {
-        SimpozioJavaService.stop();
-        return eventPromiseHelper(EVENT_STOPPED, EVENT_STOP_FAILED).then(() => {
+        const eventPromise = eventPromiseHelper(EVENT_STOPPED, EVENT_STOP_FAILED).then(() => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
+
+        SimpozioJavaService.stop();
+        return eventPromise;
     }
 };
 
