@@ -31,20 +31,21 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     public static final String SIMPOZIO_URL_EXTRA = "simpozio.url";
 
     private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
-    private final PowerManager.WakeLock wakeLock;
+    private PowerManager.WakeLock wakeLock;
 
     @SuppressLint("WakelockTimeout")
     public SimpozioJavaService(ReactApplicationContext context) {
         super(context);
-        this.wakeLock = getWakeLock();
-        this.wakeLock.acquire();
-        //
-        context.registerReceiver(createReceiver(), getFeedbackIntentFilter());
     }
 
+    @SuppressLint("WakelockTimeout")
     @Override
     public void initialize() {
-        this.eventEmitter = this.getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
+        this.eventEmitter = getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
+        this.wakeLock = ((PowerManager) getReactApplicationContext().getSystemService(POWER_SERVICE)).newWakeLock(PARTIAL_WAKE_LOCK, "wl");
+        this.wakeLock.acquire();
+        //
+        this.getReactApplicationContext().registerReceiver(createReceiver(), getFeedbackIntentFilter());
     }
 
     // React Native API
@@ -164,12 +165,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 
     private void fireEvent(WritableMap event) {
         this.eventEmitter.emit(event.getString(EVENT_TYPE), event);
-    }
-
-    private PowerManager.WakeLock getWakeLock() {
-        return ((PowerManager) this.getReactApplicationContext()
-                .getSystemService(POWER_SERVICE))
-                .newWakeLock(PARTIAL_WAKE_LOCK, "wl");
     }
 
     private Intent getHeartbeatServiceIntent() {
