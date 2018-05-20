@@ -53,12 +53,10 @@ let eventPromiseHelper = (eventSuccess, eventFailed) => {
 
 let addListener = (event, cb) => {
     let key = getKey(cb);
-
     listeners[key] = DeviceEventEmitter.addListener(event,
         (body) => {
             cb(body);
         });
-
     return key;
 };
 
@@ -90,7 +88,7 @@ let updateMetadata = (metadata) => {
         baseUrl: metadata.baseUrl,
         call: HEARTBEAT_URL,
         headers: _.assign({}, currentMetadata.headers, metadata.headers),
-        requestBody: _.assign({}, currentMetadata.body, metadata.body),
+        requestBody: _.omit(_.assign({}, currentMetadata.body, metadata.body), 'next'),
     });
 
     return currentMetadata;
@@ -143,7 +141,6 @@ let stopHeartbeat = () => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
-
         SimpozioJavaService.stop();
         return eventPromise;
     }
