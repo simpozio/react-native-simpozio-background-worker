@@ -8,10 +8,7 @@ import android.os.*;
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.http.AsyncHttpAgent;
 
-import android.support.annotation.NonNull;
-import android.util.Log;
-
-import static com.simpozio.android.background.SimpozioJavaService.*;
+import static com.simpozio.android.background.SimpozioBackgroundWorker.*;
 
 public final class HeartbeatService extends Service implements EventPublisher {
 

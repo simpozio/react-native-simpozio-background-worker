@@ -16,7 +16,7 @@ public class SimpozioJavaPackage implements ReactPackage {
 
         List<NativeModule> modules = new ArrayList<>();
 
-        modules.add(new SimpozioJavaService(reactContext));
+        modules.add(new SimpozioBackgroundWorker(reactContext));
 
         return modules;
     }

@@ -5,6 +5,7 @@ import android.os.Bundle;
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.http.AsyncHttpAgent;
 
+import org.joda.time.Period;
 import org.joda.time.format.PeriodFormatter;
 import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONException;
@@ -12,12 +13,21 @@ import org.json.JSONObject;
 
 import android.util.Log;
 
+import java.util.concurrent.TimeUnit;
+
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
+import static java.util.concurrent.TimeUnit.DAYS;
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.MINUTES;
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 public final class HeartbeatHttpAgent extends AsyncHttpAgent {
 
-    private static final PeriodFormatter PERIOD_FORMATTER = createPeriodFormatter();
+    private static PeriodFormatter PERIOD_FORMATTER = getPeriodFormatter();
+
 
     public HeartbeatHttpAgent(EventPublisher eventPublisher) {
         super(eventPublisher);
@@ -53,15 +63,15 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
                 .build();
     }
 
-    private long nextHeartbeatPeriod(Bundle requestBody) {
+    private static long nextHeartbeatPeriod(Bundle requestBody) {
 
-        String next = requestBody.getString("next");
+        Period nextPeriod = PERIOD_FORMATTER.parsePeriod(requestBody.getString("next"));
 
-        if (next != null) {
-            return (long) PERIOD_FORMATTER.parsePeriod(next.trim()).getMillis();
-        } else {
-            return this.eventLoopPeriodMs;
-        }
+        return DAYS.toMillis(nextPeriod.getDays()) +
+                HOURS.toMillis(nextPeriod.getHours()) +
+                MINUTES.toMillis(nextPeriod.getMinutes()) +
+                SECONDS.toMillis(nextPeriod.getSeconds()) +
+                MILLISECONDS.toMillis(nextPeriod.getMillis());
     }
 
     private static String prepareRequestBodyContent(Bundle metadata, DateFormatted now) throws JSONException {
@@ -77,14 +87,14 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
         }
     }
 
-    private static PeriodFormatter createPeriodFormatter() {
+    private static PeriodFormatter getPeriodFormatter() {
         return new PeriodFormatterBuilder()
-                .appendDays()
-                .appendSuffix("d")
-                .appendHours()
-                .appendSuffix("h")
-                .appendMinutes()
-                .appendSuffix("m")
+                .appendDays().appendSuffix("d")
+                .appendHours().appendSuffix("h")
+                .appendMinutes().appendSuffix("m")
+                .appendSeconds().appendSuffix("s")
+                .appendMillis().appendSuffix("ms")
                 .toFormatter();
     }
+
 }

@@ -1,29 +1,35 @@
 package com.simpozio.android.background;
 
 import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.Bundle;
+import android.os.PowerManager;
 
+import com.facebook.react.bridge.Dynamic;
+import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContextBaseJavaModule;
+import com.facebook.react.bridge.ReactMethod;
+import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableMapKeySetIterator;
+import com.facebook.react.bridge.ReadableType;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.modules.core.DeviceEventManagerModule;
-
 import com.simpozio.android.background.event.Events;
-import com.simpozio.android.background.heartbeat.*;
-import com.facebook.react.bridge.*;
+import com.simpozio.android.background.heartbeat.HeartbeatService;
 import com.simpozio.android.background.trace.TraceService;
-
-import android.app.ActivityManager;
-import android.content.*;
-import android.os.*;
-
-import android.util.Log;
 
 import static android.content.Context.POWER_SERVICE;
 import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
-
-import static com.simpozio.android.background.event.Events.*;
-import static com.simpozio.android.background.ServiceURL.*;
+import static com.simpozio.android.background.ServiceURL.HEARTBEAT_URL;
+import static com.simpozio.android.background.ServiceURL.TRACE_URL;
+import static com.simpozio.android.background.event.Events.EVENT_TYPE;
 
 // 1.
 
-public final class SimpozioJavaService extends ReactContextBaseJavaModule {
+public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
 
     public static final String HEARTBEAT_INTENT_ACTION = "background.service.heartbeat";
     public static final String FEEDBACK_INTENT_ACTION = "background.service.feedback";
@@ -38,7 +44,7 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
     private PowerManager.WakeLock wakeLock;
 
-    public SimpozioJavaService(ReactApplicationContext context) {
+    public SimpozioBackgroundWorker(ReactApplicationContext context) {
         super(context);
     }
 
@@ -133,7 +139,7 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
         return new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                SimpozioJavaService.this.fireEvent(intent.getBundleExtra(FEEDBACK_EVENT_BUNDLE));
+                SimpozioBackgroundWorker.this.fireEvent(intent.getBundleExtra(FEEDBACK_EVENT_BUNDLE));
             }
         };
     }
@@ -202,7 +208,7 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
         while (requestBodyKeys.hasNextKey()) {
             String key = requestBodyKeys.nextKey();
             if (key.equals("next")) {
-                requestBodyEventBundle.putString(key, requestBody.getType(key).equals(ReadableType.String) ? requestBody.getString(key) : String.valueOf(requestBody.getInt(key)));
+                requestBodyEventBundle.putString(key, (requestBody.getType(key).equals(ReadableType.Number) ? String.valueOf(requestBody.getInt(key)) + "ms" : requestBody.getString(key)));
             } else {
                 requestBodyEventBundle.putString(key, requestBody.getString(key));
             }
