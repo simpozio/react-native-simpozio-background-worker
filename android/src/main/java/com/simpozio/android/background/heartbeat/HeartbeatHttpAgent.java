@@ -1,8 +1,6 @@
 package com.simpozio.android.background.heartbeat;
 
-import android.content.Intent;
 import android.os.Bundle;
-import android.util.Log;
 
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.http.AsyncHttpAgent;
@@ -12,16 +10,12 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import android.util.Log;
+
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
-import static com.simpozio.android.background.SimpozioJavaService.HEADERS_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioJavaService.REQUEST_BODY_EVENT_BUNDLE;
-import static com.simpozio.android.background.SimpozioJavaService.SIMPOZIO_URL_EXTRA;
-
 public final class HeartbeatHttpAgent extends AsyncHttpAgent {
-
-    private static final String LOG_TAG = "HeartbeatHttpAgent";
 
     private static final PeriodFormatter PERIOD_FORMATTER = createPeriodFormatter();
 
@@ -31,8 +25,6 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
 
     @Override
     public Request prepareRequest() throws JSONException {
-
-        Log.d(LOG_TAG, "prepareRequest started");
 
         Bundle requestBody = this.requestBody.get();
         String simpozioUrl = this.url.get();
@@ -52,44 +44,36 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
             requestBuilder.header(key, headers.getString(key));
         }
 
-        try {
-            return requestBuilder
-                    .url(simpozioUrl)
-                    .header("Date", DateFormatted.now().date())
-                    .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(requestBody)))
-                    .build();
-        } finally {
-            Log.d(LOG_TAG, "prepareRequest finished");
+        DateFormatted now = DateFormatted.now();
+
+        return requestBuilder
+                .url(simpozioUrl)
+                .header("Date", now.date())
+                .post(RequestBody.create(MEDIA_TYPE, prepareRequestBodyContent(requestBody, now)))
+                .build();
+    }
+
+    private long nextHeartbeatPeriod(Bundle requestBody) {
+
+        String next = requestBody.getString("next");
+
+        if (next != null) {
+            return (long) PERIOD_FORMATTER.parsePeriod(next.trim()).getMillis();
+        } else {
+            return this.eventLoopPeriodMs;
         }
     }
 
-    @Override
-    public void notify(Intent event) {
-        Log.d(LOG_TAG, "notify started");
-        this.requestBody.set(event.getBundleExtra(REQUEST_BODY_EVENT_BUNDLE));
-        this.headers.set(event.getBundleExtra(HEADERS_EVENT_BUNDLE));
-        this.url.set(event.getStringExtra(SIMPOZIO_URL_EXTRA));
-        Log.d(LOG_TAG, "notify finished");
-    }
-
-    private static long nextHeartbeatPeriod(Bundle requestBody) {
-        return (long) PERIOD_FORMATTER.parsePeriod(requestBody.getString("next").trim()).getMillis();
-    }
-
-    private static String prepareRequestBodyContent(Bundle metadata) throws JSONException {
-        try {
-            Log.d(LOG_TAG, "prepareRequestBodyContent started");
-            if (metadata.containsKey("touchpoint") && metadata.containsKey("state") && metadata.containsKey("timestamp")) {
-                JSONObject content = new JSONObject();
-                for (String key : metadata.keySet()) {
-                    content.put(key, metadata.getString(key));
-                }
-                return content.toString();
-            } else {
-                throw illegalState("touchpoint, state, timestamp are required fields");
+    private static String prepareRequestBodyContent(Bundle metadata, DateFormatted now) throws JSONException {
+        if (metadata.containsKey("touchpoint") && metadata.containsKey("state")) {
+            JSONObject content = new JSONObject();
+            for (String key : metadata.keySet()) {
+                content.put(key, metadata.getString(key));
             }
-        } finally {
-            Log.d(LOG_TAG, "prepareRequestBodyContent finished");
+            content.put("timestamp", now.timestamp());
+            return content.toString();
+        } else {
+            throw illegalState("touchpoint and state are required fields");
         }
     }
 

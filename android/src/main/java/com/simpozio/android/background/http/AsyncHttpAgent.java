@@ -1,21 +1,19 @@
 package com.simpozio.android.background.http;
 
 import android.os.Bundle;
-import android.util.Log;
 
 import org.json.JSONException;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.simpozio.android.background.event.EventListener;
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.event.Events;
 
+import android.util.Log;
+
 import okhttp3.*;
 
-public abstract class AsyncHttpAgent extends Thread implements EventPublisher, EventListener {
-
-    private static final String LOG_TAG = "AsyncHttpAgent";
+public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
     public static final MediaType MEDIA_TYPE = MediaType.parse("application/json");
 
@@ -27,123 +25,110 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher, E
 
     private boolean failed = false;
 
-    private final EventPublisher feedback;
+    private long lastFailed = 0;
+
+    private final EventPublisher eventPublisher;
 
     public AsyncHttpAgent(EventPublisher eventPublisher) {
-        this.feedback = eventPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
-    public abstract Request prepareRequest() throws JSONException;
+    public abstract Request prepareRequest() throws Exception;
 
     @Override
     public void start() {
         try {
-            Log.d(LOG_TAG, "start started");
             super.start();
         } catch (IllegalThreadStateException ignored) {
-            this.fireEvent(Events.startFailed(illegalState("unexpected state on start: " + this.getState())));
-        } finally {
-            Log.d(LOG_TAG, "start finished");
+            this.fireEvent(Events.startFailed(illegalState("unexpected state on start: " + getState())));
         }
     }
 
     @Override
     public void run() {
 
-        Log.d(LOG_TAG, "run started");
-
-        long startupPoint = this.started();
-
-        long lastFailed = 0;
+        long startupPoint = started();
 
         OkHttpClient httpClient = new OkHttpClient();
 
+
         while (!isInterrupted()) {
             try {
-                try {
-                    Response response = httpClient.newCall(prepareRequest()).execute();
-                    if (!response.isSuccessful()) {
-                        this.onUnsuccessfullyResponse(response.code(), response.message());
-                        lastFailed = System.currentTimeMillis();
-                    } else {
+                Response response = httpClient.newCall(prepareRequest()).execute();
+                if (response.isSuccessful()) {
+                    this.onSuccess();
+                    try {
                         response.close();
-                        this.onSuccess(lastFailed);
+                    } catch (Exception cause) {
+                        this.onException(cause);
                     }
-                } catch (Exception cause) {
-                    this.onException(cause);
-                    lastFailed = System.currentTimeMillis();
+                    Thread.sleep(eventLoopPeriodMs);
+                } else {
+                    this.onHeartbeatFailed(response.code(), response.message());
                 }
-                Thread.sleep(this.eventLoopPeriodMs);
             } catch (InterruptedException ignored) {
-                this.interrupt(); // set flag
+                this.interrupt();
+            } catch (Exception cause) {
+                this.onHeartbeatFailed(cause);
             }
         }
         this.finish(System.currentTimeMillis() - startupPoint);
-
-        Log.d(LOG_TAG, "run finished");
     }
 
     @Override
     public void interrupt() {
-
-        Log.d(LOG_TAG, "run started");
-
         if (isInterrupted()) {
             this.fireEvent(Events.stopFailed(illegalState("already interrupted")));
         } else if (!isAlive()) {
-            this.fireEvent(Events.stopFailed(illegalState("agent died")));
+            this.fireEvent(Events.stopFailed(illegalState("HttpAgent died")));
         } else {
             super.interrupt();
         }
-
-        Log.d(LOG_TAG, "run finished");
     }
 
     @Override
     public void fireEvent(Bundle event) {
-        Log.d(LOG_TAG, "fireEvent started");
-        this.feedback.fireEvent(event);
-        Log.d(LOG_TAG, "fireEvent finished");
+        this.eventPublisher.fireEvent(event);
     }
 
     private long started() {
-        Log.d(LOG_TAG, "started started");
         this.fireEvent(Events.started());
-        try {
-            return System.currentTimeMillis();
-        } finally {
-            Log.d(LOG_TAG, "started finished");
-        }
+        return System.currentTimeMillis();
     }
 
     private void finish(long uptime) {
-        Log.d(LOG_TAG, "finish started");
         this.fireEvent(Events.stopped(uptime));
-        Log.d(LOG_TAG, "finish finished");
     }
 
-    private void onSuccess(long lastFailed) {
-        Log.d(LOG_TAG, "onSuccess started");
+    private void onSuccess() {
         if (this.failed) {
             this.fireEvent(Events.resume(System.currentTimeMillis() - lastFailed));
             this.failed = false;
         }
-        Log.d(LOG_TAG, "onSuccess finished");
+    }
+
+    private void onHeartbeatFailed(int code, String message) {
+        if (!failed) {
+            this.fireEvent(Events.heartbeatFailed(code, message));
+            this.failed = true;
+        }
+        this.lastFailed = System.currentTimeMillis();
+    }
+
+    private void onHeartbeatFailed(Exception cause) {
+        if (!failed) {
+            this.fireEvent(Events.heartbeatFailed(cause));
+            this.failed = true;
+        }
+        this.lastFailed = System.currentTimeMillis();
     }
 
     private void onException(Exception cause) {
-        Log.d(LOG_TAG, "onException started");
-        this.fireEvent(Events.exception(cause));
-        Log.d(LOG_TAG, "onException finished");
-    }
-
-    private void onUnsuccessfullyResponse(int code, String message) {
-        Log.d(LOG_TAG, "onUnsuccessfullyResponse started");
-        if (!this.failed) {
-            this.fireEvent(Events.unsuccessfullyResponse(code, message));
+        if (!failed) {
+            this.fireEvent(Events.exception(cause));
             this.failed = true;
         }
-        Log.d(LOG_TAG, "onUnsuccessfullyResponse finished");
+        this.lastFailed = System.currentTimeMillis();
     }
 
     protected static IllegalStateException illegalState(String message) {

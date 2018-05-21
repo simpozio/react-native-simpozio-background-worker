@@ -9,8 +9,10 @@ import com.simpozio.android.background.heartbeat.*;
 import com.facebook.react.bridge.*;
 import com.simpozio.android.background.trace.TraceService;
 
+import android.app.ActivityManager;
 import android.content.*;
 import android.os.*;
+
 import android.util.Log;
 
 import static android.content.Context.POWER_SERVICE;
@@ -19,9 +21,9 @@ import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
 import static com.simpozio.android.background.event.Events.*;
 import static com.simpozio.android.background.ServiceURL.*;
 
-public final class SimpozioJavaService extends ReactContextBaseJavaModule {
+// 1.
 
-    private static final String LOG_TAG = "SimpozioJavaService";
+public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 
     public static final String HEARTBEAT_INTENT_ACTION = "background.service.heartbeat";
     public static final String FEEDBACK_INTENT_ACTION = "background.service.feedback";
@@ -36,7 +38,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     private DeviceEventManagerModule.RCTDeviceEventEmitter eventEmitter;
     private PowerManager.WakeLock wakeLock;
 
-    @SuppressLint("WakelockTimeout")
     public SimpozioJavaService(ReactApplicationContext context) {
         super(context);
     }
@@ -44,13 +45,11 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     @SuppressLint("WakelockTimeout")
     @Override
     public void initialize() {
-        Log.d(LOG_TAG, "initialization hook started");
         this.eventEmitter = getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
         this.wakeLock = ((PowerManager) getReactApplicationContext().getSystemService(POWER_SERVICE)).newWakeLock(PARTIAL_WAKE_LOCK, "wl");
         this.wakeLock.acquire();
         //
         this.getReactApplicationContext().registerReceiver(createReceiver(), getFeedbackIntentFilter());
-        Log.d(LOG_TAG, "initialization hook finished");
     }
 
     // React Native API
@@ -66,7 +65,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void start(ReadableMap metadata) {
-        Log.d(LOG_TAG, "start started");
         String url = metadata.getString("call");
         switch (url) {
             case TRACE_URL:
@@ -79,12 +77,10 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
-        Log.d(LOG_TAG, "start finished");
     }
 
     @ReactMethod
     public void stop(String url) {
-        Log.d(LOG_TAG, "stop started");
         switch (url) {
             case TRACE_URL:
                 this.stopTraceService();
@@ -96,7 +92,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
-        Log.d(LOG_TAG, "stop finished");
     }
 
     /**
@@ -105,7 +100,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void update(ReadableMap metadata) {
-        Log.d(LOG_TAG, "update started");
         String url = metadata.getString("call");
         switch (url) {
             case TRACE_URL:
@@ -118,36 +112,28 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
-        Log.d(LOG_TAG, "update finished");
     }
 
     @ReactMethod
     public void releaseWakeLock() {
-        Log.d(LOG_TAG, "releaseWakeLock started");
         this.wakeLock.release();
-        Log.d(LOG_TAG, "releaseWakeLock finished");
     }
-
 
     private void startTraceService(ReadableMap metadata) {
         throw new UnsupportedOperationException();
     }
 
     private void startHeartbeatService(ReadableMap metadata) {
-        Log.d(LOG_TAG, "startHeartbeatService started");
         Intent heartbeatServiceIntent = getHeartbeatServiceIntent();
         acceptExtra(metadata, heartbeatServiceIntent);
         this.getReactApplicationContext().startService(heartbeatServiceIntent);
-        Log.d(LOG_TAG, "startHeartbeatService finished");
     }
 
     private BroadcastReceiver createReceiver() {
         return new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                Log.d(LOG_TAG, "onReceive started");
                 SimpozioJavaService.this.fireEvent(intent.getBundleExtra(FEEDBACK_EVENT_BUNDLE));
-                Log.d(LOG_TAG, "onReceive finished");
             }
         };
     }
@@ -169,15 +155,11 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     }
 
     private void stopHeartbeatService() {
-        Log.d(LOG_TAG, "stopHeartbeatService started");
         this.getReactApplicationContext().stopService(getHeartbeatServiceIntent());
-        Log.d(LOG_TAG, "stopHeartbeatService finished");
     }
 
     private void sendBroadcast(Intent intent) {
-        Log.d(LOG_TAG, "sendBroadcast started");
         this.getReactApplicationContext().sendBroadcast(intent);
-        Log.d(LOG_TAG, "sendBroadcast finished");
     }
 
     private void fireEvent(Bundle event) {
@@ -185,9 +167,7 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
     }
 
     private void fireEvent(WritableMap event) {
-        Log.d(LOG_TAG, "fireEvent started");
         this.eventEmitter.emit(event.getString(EVENT_TYPE), event);
-        Log.d(LOG_TAG, "sendBroadcast finished");
     }
 
     private Intent getHeartbeatServiceIntent() {
@@ -221,7 +201,11 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
         Bundle requestBodyEventBundle = new Bundle();
         while (requestBodyKeys.hasNextKey()) {
             String key = requestBodyKeys.nextKey();
-            requestBodyEventBundle.putString(key, requestBody.getString(key));
+            if (key.equals("next")) {
+                requestBodyEventBundle.putString(key, requestBody.getType(key).equals(ReadableType.String) ? requestBody.getString(key) : String.valueOf(requestBody.getInt(key)));
+            } else {
+                requestBodyEventBundle.putString(key, requestBody.getString(key));
+            }
         }
         metadataIntent.putExtra(REQUEST_BODY_EVENT_BUNDLE, requestBodyEventBundle);
     }
@@ -236,32 +220,6 @@ public final class SimpozioJavaService extends ReactContextBaseJavaModule {
         }
         metadataIntent.putExtra(HEADERS_EVENT_BUNDLE, headersEventBundle);
     }
-
-//    private static JSONArray convertArrayToJson(ReadableArray readableArray) throws JSONException {
-//        JSONArray array = new JSONArray();
-//        for (int i = 0; i < readableArray.size(); i++) {
-//            switch (readableArray.getType(i)) {
-//                case Null:
-//                    break;
-//                case Boolean:
-//                    array.put(readableArray.getBoolean(i));
-//                    break;
-//                case Number:
-//                    array.put(readableArray.getDouble(i));
-//                    break;
-//                case String:
-//                    array.put(readableArray.getString(i));
-//                    break;
-//                case Map:
-//                    array.put(convertMapToJson(readableArray.getMap(i)));
-//                    break;
-//                case Array:
-//                    array.put(convertArrayToJson(readableArray.getArray(i)));
-//                    break;
-//            }
-//        }
-//        return array;
-//    }
 
     private static IntentFilter getFeedbackIntentFilter() {
         return new IntentFilter(FEEDBACK_INTENT_ACTION);

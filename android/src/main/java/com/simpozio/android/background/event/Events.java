@@ -10,7 +10,7 @@ public final class Events {
 
     public static final String EVENT_TYPE = "type";
 
-    private static final String UNSUCCESSFULLY_RESPONSE = "unsuccessfullyResponse";
+    private static final String HEARTBEAT_FAILED = "heartbeatFailed";
     private static final String START_FAILED = "startFailed";
     private static final String STOP_FAILED = "stopFailed";
     private static final String UNKNOWN_URL = "unknownUrl";
@@ -41,25 +41,6 @@ public final class Events {
         event.putString("message", cause.getMessage());
         return event;
     }
-
-
-    /**
-     * @return event-object with next structure:
-     * {
-     *     "type"      : "unsuccessfullyResponse", // discriminator
-     *     "timestamp" : "string",                 // event timestamp
-     *     "message"   : "string",                 // response message
-     *     "code"      : "string"                  // response code
-     * }
-     */
-
-    public static Bundle unsuccessfullyResponse(int code, String message) {
-        Bundle event = createEvent(UNSUCCESSFULLY_RESPONSE);
-        event.putString("message", message);
-        event.putString("code", String.valueOf(code));
-        return event;
-    }
-
 
     /**
      * @return event-object with next structure:
@@ -155,6 +136,34 @@ public final class Events {
         Bundle event = createEvent(UNKNOWN_URL);
         event.putString("url", url);
         return acceptTimestamp(event);
+    }
+
+
+    /**
+     * @return event-object with next structure:
+     * {
+     *     "type"      : "unsuccessfullyResponse", // discriminator
+     *     "timestamp" : "string",                 // event timestamp
+     *     "message"   : "string",                 // response message or exception comment message
+     *     "code"      : "string",                 // response code or -1
+     *     "cause"     : "string"                  // Exception type canonical name or empty string
+     * }
+     */
+
+    public static Bundle heartbeatFailed(int code, String message) {
+        Bundle event = createEvent(HEARTBEAT_FAILED);
+        event.putString("code", String.valueOf(code));
+        event.putString("message", message);
+        event.putString("cause", "");
+        return event;
+    }
+
+    public static Bundle heartbeatFailed(Exception cause) {
+        Bundle event = createEvent(HEARTBEAT_FAILED);
+        event.putString("code", "-1");
+        event.putString("message", cause.getMessage());
+        event.putString("cause", cause.getClass().getCanonicalName());
+        return event;
     }
 
     public static WritableMap toWritableMap(Bundle eventBundle) {
