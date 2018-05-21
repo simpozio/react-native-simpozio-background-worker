@@ -1,13 +1,13 @@
 let _ = require('lodash');
 let {NativeModules, DeviceEventEmitter} = require('react-native');
-let SimpozioJavaService = NativeModules.SimpozioJavaService;
+let SimpozioBackgroundWorker = NativeModules.SimpozioBackgroundWorker;
 
 let listeners = {};
 let currentMetadata = {};
 let isHeartbeatStarted = false;
 let META = '_simpozioListenerId';
 
-//TODO take it from SimpozioJavaService
+//TODO take it from SimpozioBackgroundWorker
 let TRACE_URL = "/signals/trace";
 let HEARTBEAT_URL = "/signals/heartbeat";
 
@@ -101,14 +101,14 @@ let getKey = (listener) => {
 
 let startHeartbeat = (metadata) => {
     if (isHeartbeatStarted) {
-        SimpozioJavaService.update(updateMetadata(metadata));
+        SimpozioBackgroundWorker.update(updateMetadata(metadata));
         return Promise.resolve();
     } else {
         const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
             isHeartbeatStarted = true;
         });
 
-        SimpozioJavaService.start(updateMetadata(metadata));
+        SimpozioBackgroundWorker.start(updateMetadata(metadata));
 
         return eventPromise;
     }
@@ -118,7 +118,7 @@ let updateHeartbeat = (metadata) => {
     let data = updateMetadata(metadata);
 
     if (isHeartbeatStarted) {
-        SimpozioJavaService.update(data);
+        SimpozioBackgroundWorker.update(data);
     }
 };
 
@@ -130,7 +130,7 @@ let stopHeartbeat = () => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
-        SimpozioJavaService.stop(HEARTBEAT_URL);
+        SimpozioBackgroundWorker.stop(HEARTBEAT_URL);
         return eventPromise;
     }
 };
