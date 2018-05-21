@@ -141,7 +141,7 @@ let stopHeartbeat = () => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
-        SimpozioJavaService.stop();
+        SimpozioJavaService.stop(HEARTBEAT_URL);
         return eventPromise;
     }
 };
