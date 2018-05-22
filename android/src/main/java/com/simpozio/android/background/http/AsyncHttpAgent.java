@@ -52,7 +52,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
                 Response response = httpClient.newCall(prepareRequest()).execute();
 
-                long eventLoopDelay = (long) (this.next - (response.receivedResponseAtMillis() - response.sentRequestAtMillis()) * 0.5);
+                long doubleRequestRoundTrip = (response.receivedResponseAtMillis() - response.sentRequestAtMillis()) * 2;
 
                 if (response.isSuccessful()) {
                     this.onSuccess();
@@ -61,7 +61,9 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
                     } catch (Exception cause) {
                         this.onException(cause);
                     }
-                    Thread.sleep(eventLoopDelay);
+                    if (doubleRequestRoundTrip < this.next) {
+                        Thread.sleep(this.next - doubleRequestRoundTrip);
+                    }
                 } else {
                     this.onHeartbeatFailed(response.code(), response.message());
                 }
