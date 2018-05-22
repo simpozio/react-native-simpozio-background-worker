@@ -11,10 +11,6 @@ import org.joda.time.format.PeriodFormatterBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.util.Log;
-
-import java.util.concurrent.TimeUnit;
-
 import okhttp3.Request;
 import okhttp3.RequestBody;
 
@@ -46,7 +42,7 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
             throw illegalState("url is null");
         }
 
-        this.eventLoopPeriodMs = nextHeartbeatPeriod(requestBody);
+        this.next = nextHeartbeatPeriod(requestBody);
 
         Request.Builder requestBuilder = new Request.Builder();
 
@@ -63,15 +59,19 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
                 .build();
     }
 
-    private static long nextHeartbeatPeriod(Bundle requestBody) {
+    private long nextHeartbeatPeriod(Bundle requestBody) {
 
-        Period nextPeriod = PERIOD_FORMATTER.parsePeriod(requestBody.getString("next"));
+        String next = requestBody.getString("next");
 
-        return DAYS.toMillis(nextPeriod.getDays()) +
-                HOURS.toMillis(nextPeriod.getHours()) +
-                MINUTES.toMillis(nextPeriod.getMinutes()) +
-                SECONDS.toMillis(nextPeriod.getSeconds()) +
-                MILLISECONDS.toMillis(nextPeriod.getMillis());
+        if (next != null) {
+            Period nextPeriod = PERIOD_FORMATTER.parsePeriod(next);
+            return DAYS.toMillis(nextPeriod.getDays()) +
+                    HOURS.toMillis(nextPeriod.getHours()) +
+                    MINUTES.toMillis(nextPeriod.getMinutes()) +
+                    SECONDS.toMillis(nextPeriod.getSeconds()) +
+                    MILLISECONDS.toMillis(nextPeriod.getMillis());
+        }
+        return this.next; // return previous value
     }
 
     private static String prepareRequestBodyContent(Bundle metadata, DateFormatted now) throws JSONException {

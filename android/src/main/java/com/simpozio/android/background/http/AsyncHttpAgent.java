@@ -2,14 +2,10 @@ package com.simpozio.android.background.http;
 
 import android.os.Bundle;
 
-import org.json.JSONException;
-
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.event.Events;
-
-import android.util.Log;
 
 import okhttp3.*;
 
@@ -21,7 +17,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
     public final AtomicReference<Bundle> headers = new AtomicReference<>(null);
     public final AtomicReference<String> url = new AtomicReference<>(null);
 
-    public volatile long eventLoopPeriodMs = 5000L;
+    public long next = 5000L;
 
     private boolean failed = false;
 
@@ -51,10 +47,13 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
         OkHttpClient httpClient = new OkHttpClient();
 
-
         while (!isInterrupted()) {
             try {
+
                 Response response = httpClient.newCall(prepareRequest()).execute();
+
+                long eventLoopDelay = (long) (this.next - (response.receivedResponseAtMillis() - response.sentRequestAtMillis()) * 0.5);
+
                 if (response.isSuccessful()) {
                     this.onSuccess();
                     try {
@@ -62,7 +61,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
                     } catch (Exception cause) {
                         this.onException(cause);
                     }
-                    Thread.sleep(eventLoopPeriodMs);
+                    Thread.sleep(eventLoopDelay);
                 } else {
                     this.onHeartbeatFailed(response.code(), response.message());
                 }

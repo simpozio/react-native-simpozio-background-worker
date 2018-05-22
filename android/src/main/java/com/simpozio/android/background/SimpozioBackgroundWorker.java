@@ -8,7 +8,6 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.PowerManager;
 
-import com.facebook.react.bridge.Dynamic;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -208,7 +207,16 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         while (requestBodyKeys.hasNextKey()) {
             String key = requestBodyKeys.nextKey();
             if (key.equals("next")) {
-                requestBodyEventBundle.putString(key, (requestBody.getType(key).equals(ReadableType.Number) ? String.valueOf(requestBody.getInt(key)) + "ms" : requestBody.getString(key)));
+                if (!requestBody.isNull(key)) {
+                    switch (requestBody.getType(key)) {
+                        case Number:
+                            requestBodyEventBundle.putString(key, String.valueOf(requestBody.getInt(key)) + "ms");
+                            break;
+                        case String:
+                            requestBodyEventBundle.putString(key, requestBody.getString(key));
+                            break;
+                    }
+                }
             } else {
                 requestBodyEventBundle.putString(key, requestBody.getString(key));
             }
