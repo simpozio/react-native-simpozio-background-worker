@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/smekalka/react-native-simpozio-background-worker#readme",
   "dependencies": {
-    "lodash": "^4.17.5"
+    "lodash": "^4.17.5",
+    "react-native": "^0.55.4"
   }
 }
