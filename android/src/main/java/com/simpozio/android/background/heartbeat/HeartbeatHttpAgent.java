@@ -24,7 +24,6 @@ public final class HeartbeatHttpAgent extends AsyncHttpAgent {
 
     private static PeriodFormatter PERIOD_FORMATTER = getPeriodFormatter();
 
-
     public HeartbeatHttpAgent(EventPublisher eventPublisher) {
         super(eventPublisher);
     }

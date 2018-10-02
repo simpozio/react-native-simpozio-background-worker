@@ -1,36 +1,28 @@
 package com.simpozio.android.background;
 
-import android.annotation.SuppressLint;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
+import android.content.*;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.annotation.SuppressLint;
 
-import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.ReadableMapKeySetIterator;
-import com.facebook.react.bridge.ReadableType;
-import com.facebook.react.bridge.WritableMap;
-import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.facebook.react.bridge.*;
 import com.simpozio.android.background.event.Events;
-import com.simpozio.android.background.heartbeat.HeartbeatService;
+import com.simpozio.android.background.ping.PingService;
 import com.simpozio.android.background.trace.TraceService;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
+import com.simpozio.android.background.heartbeat.HeartbeatService;
 
 import static android.content.Context.POWER_SERVICE;
 import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
-import static com.simpozio.android.background.ServiceURL.HEARTBEAT_URL;
-import static com.simpozio.android.background.ServiceURL.TRACE_URL;
-import static com.simpozio.android.background.event.Events.EVENT_TYPE;
 
-// 1.
+import static com.facebook.react.bridge.ReadableType.*;
+import static com.simpozio.android.background.ServiceURL.*;
+import static com.simpozio.android.background.event.Events.EVENT_TYPE;
 
 public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
 
     public static final String HEARTBEAT_INTENT_ACTION = "background.service.heartbeat";
+    public static final String PING_INTENT_ACTION = "background.service.ping";
     public static final String FEEDBACK_INTENT_ACTION = "background.service.feedback";
     public static final String TRACE_INTENT_ACTION = "background.service.trace";
 
@@ -47,8 +39,8 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         super(context);
     }
 
-    @SuppressLint("WakelockTimeout")
     @Override
+    @SuppressLint({"WakelockTimeout", "InvalidWakeLockTag"})
     public void initialize() {
         this.eventEmitter = getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class);
         this.wakeLock = ((PowerManager) getReactApplicationContext().getSystemService(POWER_SERVICE)).newWakeLock(PARTIAL_WAKE_LOCK, "wl");
@@ -82,6 +74,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
+        this.startPingService(metadata);
     }
 
     @ReactMethod
@@ -97,10 +90,11 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
+        this.stopPingService();
     }
 
     /**
-     * @param metadata is object {"baseUrl":"string", "call":"string", "headers":{...}, "body":{...} or [...]}
+     * @param metadata is object {"baseUrl":"string", "call":"string", "headers":{...}, "body":{...} or [...], "pingDelay":"string", "pingSeriesDelay":"string", "pingCount":"string"}
      */
 
     @ReactMethod
@@ -117,6 +111,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
                 this.fireEvent(Events.unknownUrl(url));
             }
         }
+        this.sendBroadcast(toPingIntent(metadata));
     }
 
     @ReactMethod
@@ -132,6 +127,10 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         Intent heartbeatServiceIntent = getHeartbeatServiceIntent();
         acceptExtra(metadata, heartbeatServiceIntent);
         this.getReactApplicationContext().startService(heartbeatServiceIntent);
+    }
+
+    private void startPingService(ReadableMap metadata) {
+        this.getReactApplicationContext().startService(acceptPingExtra(metadata, getPingServiceIntent()));
     }
 
     private BroadcastReceiver createReceiver() {
@@ -154,6 +153,11 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         return acceptExtra(metadata, metadataIntent);
     }
 
+    private Intent toPingIntent(ReadableMap metadata) {
+        Intent metadataIntent = new Intent(PING_INTENT_ACTION);
+        return acceptPingExtra(metadata, metadataIntent);
+    }
+
     private void stopTraceService() {
         throw new UnsupportedOperationException();
 //        this.getReactApplicationContext().stopService(getTraceServiceIntent());
@@ -161,6 +165,10 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
 
     private void stopHeartbeatService() {
         this.getReactApplicationContext().stopService(getHeartbeatServiceIntent());
+    }
+
+    private void stopPingService() {
+        this.getReactApplicationContext().stopService(getPingServiceIntent());
     }
 
     private void sendBroadcast(Intent intent) {
@@ -179,6 +187,10 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         return new Intent(getReactApplicationContext(), HeartbeatService.class);
     }
 
+    private Intent getPingServiceIntent() {
+        return new Intent(getReactApplicationContext(), PingService.class);
+    }
+
     private Intent getTraceServiceIntent() {
         return new Intent(getReactApplicationContext(), TraceService.class);
     }
@@ -190,9 +202,10 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         acceptHeadersExtra(metadata, metadataIntent);
         // request body
         ReadableType requestBodyType = metadata.getType("requestBody");
-        if (requestBodyType.equals(ReadableType.Map)) {
+        //
+        if (requestBodyType.equals(Map)) {
             acceptMapRequestBodyExtra(metadata, metadataIntent);
-        } else if (requestBodyType.equals(ReadableType.Array)) {
+        } else if (requestBodyType.equals(Array)) {
             throw new UnsupportedOperationException();
         } else {
             throw new UnsupportedOperationException();
@@ -210,7 +223,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
                 if (!requestBody.isNull(key)) {
                     switch (requestBody.getType(key)) {
                         case Number:
-                            requestBodyEventBundle.putString(key, String.valueOf(requestBody.getInt(key)) + "ms");
+                            requestBodyEventBundle.putString(key, requestBody.getInt(key) + "ms");
                             break;
                         case String:
                             requestBodyEventBundle.putString(key, requestBody.getString(key));
@@ -222,6 +235,13 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
             }
         }
         metadataIntent.putExtra(REQUEST_BODY_EVENT_BUNDLE, requestBodyEventBundle);
+    }
+
+    private static Intent acceptPingExtra(ReadableMap metadata, Intent metadataIntent) {
+        metadataIntent.putExtra("pingDelay", metadata.getInt("pingDelay"));
+        metadataIntent.putExtra("pingCount", metadata.getInt("pingCount"));
+        metadataIntent.putExtra("pingSeriesDelay", metadata.getInt("pingSeriesDelay"));
+        return metadataIntent;
     }
 
     private static void acceptHeadersExtra(ReadableMap metadata, Intent metadataIntent) {
