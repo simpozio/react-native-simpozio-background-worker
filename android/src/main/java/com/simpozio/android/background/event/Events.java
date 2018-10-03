@@ -6,11 +6,15 @@ import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
 import com.simpozio.android.background.heartbeat.DateFormatted;
 
+import org.joda.time.DateTime;
+
 public final class Events {
 
     public static final String EVENT_TYPE = "type";
 
     private static final String HEARTBEAT_FAILED = "heartbeatFailed";
+    private static final String PING_FAILED = "pingFailed";
+    private static final String SERVER_TIMESTAMP = "serverTimestamp";
     private static final String START_FAILED = "startFailed";
     private static final String STOP_FAILED = "stopFailed";
     private static final String UNKNOWN_URL = "unknownUrl";
@@ -57,6 +61,20 @@ public final class Events {
         return acceptTimestamp(event);
     }
 
+    /**
+     * @return event-object with next structure:
+     * {
+     *     "type"             : "serverTimestamp",  // discriminator
+     *     "timestamp"        : "string",           // event timestamp
+     *     "serverTimestamp"  : "string"            // timestamp from server with next format: yyyy-MM-dd'T'HH:mm:ss.SSSZ
+     * }
+     */
+
+    public static Bundle serverTimestamp(DateTime timestamp) {
+        Bundle event = createEvent(SERVER_TIMESTAMP);
+        event.putString("serverTimestamp", timestamp.toString());
+        return acceptTimestamp(event);
+    }
 
     /**
      * @return event-object with next structure:
@@ -163,6 +181,22 @@ public final class Events {
         event.putString("code", "-1");
         event.putString("message", cause.getMessage());
         event.putString("cause", cause.getClass().getCanonicalName());
+        return event;
+    }
+
+    public static Bundle pingFailed(Exception cause) {
+        Bundle event = createEvent(PING_FAILED);
+        event.putString("code", "-1");
+        event.putString("message", cause.getMessage());
+        event.putString("cause", cause.getClass().getCanonicalName());
+        return event;
+    }
+
+    public static Bundle pingFailed(int code, String message) {
+        Bundle event = createEvent(PING_FAILED);
+        event.putString("code", String.valueOf(code));
+        event.putString("message", message);
+        event.putString("cause", "");
         return event;
     }
 

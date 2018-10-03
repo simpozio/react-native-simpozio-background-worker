@@ -56,16 +56,16 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
                 if (response.isSuccessful()) {
                     this.onSuccess();
-                    try {
-                        response.close();
-                    } catch (Exception cause) {
-                        this.onException(cause);
-                    }
-                    if (doubleRequestRoundTrip < this.next) {
-                        Thread.sleep(this.next - doubleRequestRoundTrip);
-                    }
                 } else {
                     this.onHeartbeatFailed(response.code(), response.message());
+                }
+                try {
+                    response.close();
+                } catch (Exception cause) {
+                    this.onException(cause);
+                }
+                if (doubleRequestRoundTrip < this.next) {
+                    Thread.sleep(this.next - doubleRequestRoundTrip);
                 }
             } catch (InterruptedException ignored) {
                 this.interrupt();
