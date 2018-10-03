@@ -1,14 +1,11 @@
 {
   "name": "react-native-simpozio-background-worker",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "React Native Simpozio Background Worker",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/smekalka/react-native-simpozio-background-worker.git"
+    "url": "https://github.com/simpozio/react-native-simpozio-background-worker.git"
   },
   "keywords": [
     "react",
@@ -18,9 +15,8 @@
   ],
   "author": "Dmitriy Korobov",
   "bugs": {
-    "url": "https://github.com/smekalka/react-native-simpozio-background-worker#issues"
+    "url": "https://github.com/simpozio/react-native-simpozio-background-worker#issues"
   },
-  "homepage": "https://github.com/smekalka/react-native-simpozio-background-worker#readme",
   "dependencies": {
     "lodash": "^4.17.5",
     "react-native": "^0.55.4"
