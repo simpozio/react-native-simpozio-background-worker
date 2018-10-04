@@ -18,12 +18,10 @@ public class PingService extends Service implements EventPublisher {
 
     private final PingHttpAgent pingAgent = new PingHttpAgent(this);
 
-    private final BroadcastReceiver receiver = this.createReceiver();
-
     @Override
     public void onCreate() {
         super.onCreate();
-        this.registerReceiver(receiver, getPingIntentFilter());
+        this.registerReceiver(createReceiver(), getPingIntentFilter());
     }
 
     @Override
@@ -47,9 +45,10 @@ public class PingService extends Service implements EventPublisher {
     }
 
    private void updateAgent(Intent intent) {
-       this.pingAgent.pingCount.set(intent.getIntExtra("pingCount", 10));
-       this.pingAgent.pingDelay.set(intent.getIntExtra("pingDelay", 5_000)); // 5 sec
-       this.pingAgent.pingSeriesDelay.set(intent.getIntExtra("pingSeriesDelay", 600_000)); // 10 min
+       this.pingAgent.pingCount.set(Integer.parseInt(intent.getStringExtra("count")));
+       this.pingAgent.pingDelay.set(Long.parseLong(intent.getStringExtra("delay"))); // 5 sec
+       this.pingAgent.pingSeriesDelay.set(Long.parseLong(intent.getStringExtra("seriesDelay"))); // 10 min
+       this.pingAgent.pingUrl.set(intent.getStringExtra("baseUrl"));
    }
 
     private BroadcastReceiver createReceiver() {

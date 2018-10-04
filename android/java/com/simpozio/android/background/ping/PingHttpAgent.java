@@ -2,6 +2,7 @@ package com.simpozio.android.background.ping;
 
 import android.os.Bundle;
 
+import com.simpozio.android.background.ServiceURL;
 import com.simpozio.android.background.event.EventPublisher;
 import com.simpozio.android.background.event.Events;
 
@@ -12,18 +13,18 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
-public class PingHttpAgent extends Thread implements EventPublisher {
-
-    private static final String PING_URL = "https://api-preprod.simpozio.com/v2/ping";
+public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL {
 
     public final AtomicLong pingDelay = new AtomicLong();
     public final AtomicInteger pingCount = new AtomicInteger();
     public final AtomicLong pingSeriesDelay = new AtomicLong();
+    public final AtomicReference<String> pingUrl = new AtomicReference<>();
 
     private final EventPublisher eventPublisher;
 
@@ -36,9 +37,31 @@ public class PingHttpAgent extends Thread implements EventPublisher {
     }
 
     @Override
+    public void start() {
+        try {
+            super.start();
+        } catch (IllegalThreadStateException ignored) {
+            this.fireEvent(Events.pingStartFailed(illegalState("unexpected state on start: " + getState())));
+        }
+    }
+
+    @Override
+    public void interrupt() {
+        if (isInterrupted()) {
+            this.fireEvent(Events.pingStopFailed(illegalState("already interrupted")));
+        } else if (!isAlive()) {
+            this.fireEvent(Events.pingStopFailed(illegalState("httpAgent died")));
+        } else {
+            super.interrupt();
+        }
+    }
+
+    @Override
     public void run() {
 
-        Request pingRequest = new Request.Builder().get().url(PING_URL).build();
+        long startupPoint = started();
+
+        Request pingRequest = new Request.Builder().get().url(pingUrl.get() + PING_URL).build();
 
         OkHttpClient httpClient = new OkHttpClient();
 
@@ -94,7 +117,7 @@ public class PingHttpAgent extends Thread implements EventPublisher {
                         }
                         try {
                             JSONObject body = new JSONObject(response.body().string());
-                            fireEvent(Events.serverTimestamp(DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2)));
+                            fireEvent(Events.serverTimestamp(DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2), avg));
                             response.close();
                         } catch (Exception e) {
                             this.onException(e);
@@ -108,6 +131,7 @@ public class PingHttpAgent extends Thread implements EventPublisher {
                 this.onPingFailed(cause);
             }
         }
+        this.finish(System.currentTimeMillis() - startupPoint);
     }
 
     @Override
@@ -117,7 +141,7 @@ public class PingHttpAgent extends Thread implements EventPublisher {
 
     private void onSuccess() {
         if (this.failed) {
-            this.fireEvent(Events.resume(System.currentTimeMillis() - lastFailed));
+            this.fireEvent(Events.pingResume(System.currentTimeMillis() - lastFailed));
             this.failed = false;
         }
     }
@@ -140,10 +164,19 @@ public class PingHttpAgent extends Thread implements EventPublisher {
 
     private void onException(Exception cause) {
         if (!failed) {
-            this.fireEvent(Events.exception(cause));
+            this.fireEvent(Events.pingException(cause));
             this.failed = true;
         }
         this.lastFailed = System.currentTimeMillis();
+    }
+
+    private long started() {
+        this.fireEvent(Events.pingStarted());
+        return System.currentTimeMillis();
+    }
+
+    private void finish(long uptime) {
+        this.fireEvent(Events.pingStopped(uptime));
     }
 
     public static class Average {
@@ -195,5 +228,9 @@ public class PingHttpAgent extends Thread implements EventPublisher {
 
             return (int) avg;
         }
+    }
+
+    protected static IllegalStateException illegalState(String message) {
+        return new IllegalStateException(message);
     }
 }

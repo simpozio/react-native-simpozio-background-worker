@@ -19,7 +19,7 @@ import static com.facebook.react.bridge.ReadableType.*;
 import static com.simpozio.android.background.ServiceURL.*;
 import static com.simpozio.android.background.event.Events.EVENT_TYPE;
 
-public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
+public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule implements ServiceURL {
 
     public static final String HEARTBEAT_INTENT_ACTION = "background.service.heartbeat";
     public static final String PING_INTENT_ACTION = "background.service.ping";
@@ -57,61 +57,64 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
     }
 
     /**
-     * @param metadata is object {"baseUrl":"string", "call":"string", "headers":{...}, "body":{...} or [...]}
+     * @param metadata is object {"baseUrl":"string", "headers":{...}, "requestBody":{...} or [...]}
      */
 
     @ReactMethod
-    public void start(ReadableMap metadata) {
-        String url = metadata.getString("call");
-        switch (url) {
-            case TRACE_URL:
-                this.startTraceService(metadata);
-                break;
-            case HEARTBEAT_URL:
-                this.startHeartbeatService(metadata);
-                break;
-            default: {
-                this.fireEvent(Events.unknownUrl(url));
-            }
-        }
+    public void startHeartbeat(ReadableMap metadata) {
+        this.startHeartbeatService(metadata);
+    }
+
+    /**
+     * @param metadata is object {"baseUrl":"string", "delay":"string", "seriesDelay":"string", "count":"string"}
+     */
+
+    @ReactMethod
+    public void startPing(ReadableMap metadata) {
         this.startPingService(metadata);
     }
 
     @ReactMethod
-    public void stop(String url) {
-        switch (url) {
-            case TRACE_URL:
-                this.stopTraceService();
-                break;
-            case HEARTBEAT_URL:
-                this.stopHeartbeatService();
-                break;
-            default: {
-                this.fireEvent(Events.unknownUrl(url));
-            }
-        }
+    public void startTrace(ReadableMap metadata) {
+        this.startPingService(metadata);
+    }
+
+    @ReactMethod
+    public void stopHeartbeat() {
+        this.stopHeartbeatService();
+    }
+
+    @ReactMethod
+    public void stopPing() {
+        this.stopPingService();
+    }
+
+    @ReactMethod
+    public void stopTrace() {
         this.stopPingService();
     }
 
     /**
-     * @param metadata is object {"baseUrl":"string", "call":"string", "headers":{...}, "body":{...} or [...], "pingDelay":"string", "pingSeriesDelay":"string", "pingCount":"string"}
+     * @param metadata is object {"baseUrl":"string", "delay":"string", "seriesDelay":"string", "count":"string"}
      */
 
     @ReactMethod
-    public void update(ReadableMap metadata) {
-        String url = metadata.getString("call");
-        switch (url) {
-            case TRACE_URL:
-                this.sendBroadcast(toTraceIntent(metadata));
-                break;
-            case HEARTBEAT_URL:
-                this.sendBroadcast(toHeartbeatIntent(metadata));
-                break;
-            default: {
-                this.fireEvent(Events.unknownUrl(url));
-            }
-        }
+    public void updatePing(ReadableMap metadata) {
         this.sendBroadcast(toPingIntent(metadata));
+    }
+
+    /**
+     * @param metadata is object {"baseUrl":"string", "headers":{...}, "requestBody":{...} or [...]}
+     */
+
+    @ReactMethod
+    public void updateHeartbeat(ReadableMap metadata) {
+        this.sendBroadcast(toHeartbeatIntent(metadata));
+    }
+
+    @ReactMethod
+    public void updateTrace(ReadableMap metadata) {
+        this.sendBroadcast(toTraceIntent(metadata));
     }
 
     @ReactMethod
@@ -124,9 +127,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
     }
 
     private void startHeartbeatService(ReadableMap metadata) {
-        Intent heartbeatServiceIntent = getHeartbeatServiceIntent();
-        acceptExtra(metadata, heartbeatServiceIntent);
-        this.getReactApplicationContext().startService(heartbeatServiceIntent);
+        this.getReactApplicationContext().startService(acceptExtra(metadata, getHeartbeatServiceIntent(), HEARTBEAT_URL));
     }
 
     private void startPingService(ReadableMap metadata) {
@@ -145,12 +146,12 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
     private Intent toTraceIntent(ReadableMap metadata) {
         throw new UnsupportedOperationException();
 //        Intent metadataIntent = new Intent(TRACE_INTENT_ACTION);
-//        return acceptExtra(metadata, metadataIntent);
+//        return acceptExtra(metadata, metadata, TRACE_URL);
     }
 
     private Intent toHeartbeatIntent(ReadableMap metadata) {
         Intent metadataIntent = new Intent(HEARTBEAT_INTENT_ACTION);
-        return acceptExtra(metadata, metadataIntent);
+        return acceptExtra(metadata, metadataIntent, HEARTBEAT_URL);
     }
 
     private Intent toPingIntent(ReadableMap metadata) {
@@ -195,9 +196,9 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
         return new Intent(getReactApplicationContext(), TraceService.class);
     }
 
-    private static Intent acceptExtra(ReadableMap metadata, Intent metadataIntent) {
+    private static Intent acceptExtra(ReadableMap metadata, Intent metadataIntent, String path) {
         // simpozio address
-        metadataIntent.putExtra(SIMPOZIO_URL_EXTRA, metadata.getString("baseUrl") + metadata.getString("call"));
+        metadataIntent.putExtra(SIMPOZIO_URL_EXTRA, metadata.getString("baseUrl") + path);
         // headers
         acceptHeadersExtra(metadata, metadataIntent);
         // request body
@@ -238,9 +239,10 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule {
     }
 
     private static Intent acceptPingExtra(ReadableMap metadata, Intent metadataIntent) {
-        metadataIntent.putExtra("pingDelay", metadata.getInt("pingDelay"));
-        metadataIntent.putExtra("pingCount", metadata.getInt("pingCount"));
-        metadataIntent.putExtra("pingSeriesDelay", metadata.getInt("pingSeriesDelay"));
+        metadataIntent.putExtra("delay", metadata.getInt("delay"));
+        metadataIntent.putExtra("baseUrl", metadata.getString("baseUrl"));
+        metadataIntent.putExtra("count", metadata.getInt("count"));
+        metadataIntent.putExtra("seriesDelay", metadata.getInt("seriesDelay"));
         return metadataIntent;
     }
 
