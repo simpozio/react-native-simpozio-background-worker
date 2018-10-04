@@ -36,7 +36,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
         try {
             super.start();
         } catch (IllegalThreadStateException ignored) {
-            this.fireEvent(Events.startFailed(illegalState("unexpected state on start: " + getState())));
+            this.fireEvent(Events.heartbeatStartFailed(illegalState("unexpected state on start: " + getState())));
         }
     }
 
@@ -79,9 +79,9 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
     @Override
     public void interrupt() {
         if (isInterrupted()) {
-            this.fireEvent(Events.stopFailed(illegalState("already interrupted")));
+            this.fireEvent(Events.heartbeatStopFailed(illegalState("already interrupted")));
         } else if (!isAlive()) {
-            this.fireEvent(Events.stopFailed(illegalState("HttpAgent died")));
+            this.fireEvent(Events.heartbeatStopFailed(illegalState("httpAgent died")));
         } else {
             super.interrupt();
         }
@@ -93,17 +93,17 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
     }
 
     private long started() {
-        this.fireEvent(Events.started());
+        this.fireEvent(Events.heartbeatStarted());
         return System.currentTimeMillis();
     }
 
     private void finish(long uptime) {
-        this.fireEvent(Events.stopped(uptime));
+        this.fireEvent(Events.heartbeatStopped(uptime));
     }
 
     private void onSuccess() {
         if (this.failed) {
-            this.fireEvent(Events.resume(System.currentTimeMillis() - lastFailed));
+            this.fireEvent(Events.heartbeatResume(System.currentTimeMillis() - lastFailed));
             this.failed = false;
         }
     }
@@ -126,7 +126,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
     private void onException(Exception cause) {
         if (!failed) {
-            this.fireEvent(Events.exception(cause));
+            this.fireEvent(Events.heartbeatException(cause));
             this.failed = true;
         }
         this.lastFailed = System.currentTimeMillis();

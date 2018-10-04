@@ -14,12 +14,10 @@ public final class HeartbeatService extends Service implements EventPublisher {
 
     private final AsyncHttpAgent httpAgent = new HeartbeatHttpAgent(this);
 
-    private final BroadcastReceiver receiver = this.createReceiver();
-
     @Override
     public void onCreate() {
         super.onCreate();
-        this.registerReceiver(receiver, getHeartbeatIntentFilter());
+        this.registerReceiver(createReceiver(), getHeartbeatIntentFilter());
     }
 
     @Override

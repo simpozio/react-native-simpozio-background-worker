@@ -1,6 +1,7 @@
-<manifest xml:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.simpozio.android.background"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+    xml:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -9,5 +10,9 @@
         <service
             android:name=".heartbeat.HeartbeatService"
             android:enabled="true" />
+        <service
+            android:name=".ping.PingService"
+            android:enabled="true" />
     </application>
+
 </manifest>
