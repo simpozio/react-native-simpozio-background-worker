@@ -3,40 +3,37 @@ let {NativeModules, DeviceEventEmitter} = require('react-native');
 let SimpozioBackgroundWorker = NativeModules.SimpozioBackgroundWorker;
 
 let listeners = {};
-let currentMetadata = {};
+let currentHeartbeatMetadata = {};
+let currentPingMetadata = {};
 let isHeartbeatStarted = false;
+let isPingStarted = false;
 let META = '_simpozioListenerId';
 
-//TODO take it from SimpozioBackgroundWorker
-let TRACE_URL = "/signals/trace";
-let HEARTBEAT_URL = "/signals/heartbeat";
-
-let EVENT_HEARTBEAT_FAILED = "heartbeatFailed";
 let EVENT_START_FAILED = "startFailed";
 let EVENT_STOP_FAILED = "stopFailed";
-let EVENT_UNKNOWN_URL = "unknownUrl";
-let EVENT_EXCEPTION = "exception";
 let EVENT_STARTED = "started";
 let EVENT_STOPPED = "stopped";
-let EVENT_RESUME = "resume";
 
-
-
-let eventPromiseHelper = (eventSuccess, eventFailed) => {
+let eventPromiseHelper = (eventSuccess, eventFailed, service) => {
     return new Promise((resolve, reject) => {
         let waitFor;
         let waitForFailed;
 
-        waitFor = DeviceEventEmitter.addListener(eventSuccess, () => {
-            waitForFailed.remove();
-            waitFor.remove();
-            return resolve();
+        waitFor = DeviceEventEmitter.addListener(eventSuccess, (event) => {
+            if (event.service === service) {
+                waitForFailed.remove();
+                waitFor.remove();
+                return resolve();
+            }
+
         });
 
         waitForFailed = DeviceEventEmitter.addListener(eventFailed, (error) => {
-            waitForFailed.remove();
-            waitFor.remove();
-            return reject(error);
+            if (event.service === service) {
+                waitForFailed.remove();
+                waitFor.remove();
+                return reject(error);
+            }
         });
     });
 };
@@ -74,13 +71,18 @@ let removeAllListeners = (key) => {
 
 
 let updateHeartbeatMetadata = (metadata) => {
-    currentMetadata = _.assign({}, currentMetadata, {
+    currentHeartbeatMetadata = _.assign({}, currentHeartbeatMetadata, {
         baseUrl: metadata.baseUrl,
-        headers: _.assign({}, currentMetadata.headers, metadata.headers),
-        requestBody: _.assign({}, currentMetadata.body, metadata.body)
+        headers: _.assign({}, currentHeartbeatMetadata.headers, metadata.headers),
+        requestBody: _.assign({}, currentHeartbeatMetadata.body, metadata.body)
     });
 
-    return currentMetadata;
+    return currentHeartbeatMetadata;
+};
+
+let updatePingMetadata = (metadata) => {
+    currentPingMetadata = _.assign({}, currentPingMetadata, metadata);
+    return currentPingMetadata;
 };
 
 let getKey = (listener) => {
@@ -102,7 +104,7 @@ let startHeartbeat = (metadata) => {
         SimpozioBackgroundWorker.updateHeartbeat(updateHeartbeatMetadata(metadata));
         return Promise.resolve();
     } else {
-        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
+        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED, 'heartbeat').then(() => {
             isHeartbeatStarted = true;
         });
 
@@ -117,8 +119,8 @@ let startPing = (metadata) => {
         SimpozioBackgroundWorker.updateHeartbeat(updateHeartbeatMetadata(metadata));
         return Promise.resolve();
     } else {
-        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
-            isHeartbeatStarted = true;
+        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED, 'ping').then(() => {
+            isPingStarted = true;
         });
 
         SimpozioBackgroundWorker.startHeartbeat(updateHeartbeatMetadata(metadata));
@@ -135,13 +137,34 @@ let updateHeartbeat = (metadata) => {
     }
 };
 
+let updatePing = (metadata) => {
+    let data = updatePingMetadata(metadata);
+
+    if (isPingStarted) {
+        SimpozioBackgroundWorker.updatePing(data);
+    }
+};
+
 let stopHeartbeat = () => {
     if (!isHeartbeatStarted) {
         return Promise.resolve();
     } else {
-        const eventPromise = eventPromiseHelper(EVENT_STOPPED, EVENT_STOP_FAILED).then(() => {
+        const eventPromise = eventPromiseHelper(EVENT_STOPPED, EVENT_STOP_FAILED, 'heartbeat').then(() => {
             removeAllListeners();
             isHeartbeatStarted = false;
+        });
+        SimpozioBackgroundWorker.stopHeartbeat();
+        return eventPromise;
+    }
+};
+
+let stopPing = () => {
+    if (!isHeartbeatStarted) {
+        return Promise.resolve();
+    } else {
+        const eventPromise = eventPromiseHelper(EVENT_STOPPED, EVENT_STOP_FAILED, 'ping').then(() => {
+            removeAllListeners();
+            isPingStarted= false;
         });
         SimpozioBackgroundWorker.stopHeartbeat();
         return eventPromise;
@@ -153,6 +176,9 @@ module.exports = {
     updateHeartbeat,
     stopHeartbeat,
     addListener,
+    startPing,
+    updatePing,
+    stopPing,
     removeListener,
     removeAllListeners
 };
