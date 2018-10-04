@@ -23,7 +23,6 @@ let EVENT_RESUME = "resume";
 
 
 let eventPromiseHelper = (eventSuccess, eventFailed) => {
-
     return new Promise((resolve, reject) => {
         let waitFor;
         let waitForFailed;
@@ -74,10 +73,9 @@ let removeAllListeners = (key) => {
 };
 
 
-let updateMetadata = (metadata) => {
+let updateHeartbeatMetadata = (metadata) => {
     currentMetadata = _.assign({}, currentMetadata, {
         baseUrl: metadata.baseUrl,
-        call: HEARTBEAT_URL,
         headers: _.assign({}, currentMetadata.headers, metadata.headers),
         requestBody: _.assign({}, currentMetadata.body, metadata.body)
     });
@@ -101,24 +99,39 @@ let getKey = (listener) => {
 
 let startHeartbeat = (metadata) => {
     if (isHeartbeatStarted) {
-        SimpozioBackgroundWorker.update(updateMetadata(metadata));
+        SimpozioBackgroundWorker.updateHeartbeat(updateHeartbeatMetadata(metadata));
         return Promise.resolve();
     } else {
         const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
             isHeartbeatStarted = true;
         });
 
-        SimpozioBackgroundWorker.start(updateMetadata(metadata));
+        SimpozioBackgroundWorker.startHeartbeat(updateHeartbeatMetadata(metadata));
+
+        return eventPromise;
+    }
+};
+
+let startPing = (metadata) => {
+    if (isHeartbeatStarted) {
+        SimpozioBackgroundWorker.updateHeartbeat(updateHeartbeatMetadata(metadata));
+        return Promise.resolve();
+    } else {
+        const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED).then(() => {
+            isHeartbeatStarted = true;
+        });
+
+        SimpozioBackgroundWorker.startHeartbeat(updateHeartbeatMetadata(metadata));
 
         return eventPromise;
     }
 };
 
 let updateHeartbeat = (metadata) => {
-    let data = updateMetadata(metadata);
+    let data = updateHeartbeatMetadata(metadata);
 
     if (isHeartbeatStarted) {
-        SimpozioBackgroundWorker.update(data);
+        SimpozioBackgroundWorker.updateHeartbeat(data);
     }
 };
 
@@ -130,7 +143,7 @@ let stopHeartbeat = () => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
-        SimpozioBackgroundWorker.stop(HEARTBEAT_URL);
+        SimpozioBackgroundWorker.stopHeartbeat();
         return eventPromise;
     }
 };
