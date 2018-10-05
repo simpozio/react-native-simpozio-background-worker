@@ -95,7 +95,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule i
     }
 
     /**
-     * @param metadata is object {"baseUrl":"string", "delay":"string (seconds, default 5)", "seriesDelay":"string (seconds, default 600)", "count":"string, default 10"}
+     * @param metadata is object {"baseUrl":"string", "delay":"string", "seriesDelay":"string", "count":"string"}
      */
 
     @ReactMethod
