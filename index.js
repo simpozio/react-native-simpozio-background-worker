@@ -20,7 +20,7 @@ let eventPromiseHelper = (eventSuccess, eventFailed, service) => {
         let waitForFailed;
 
         waitFor = DeviceEventEmitter.addListener(eventSuccess, (event) => {
-            if (event.service === service) {
+            if (event && event.service === service) {
                 waitForFailed.remove();
                 waitFor.remove();
                 return resolve();
@@ -29,7 +29,7 @@ let eventPromiseHelper = (eventSuccess, eventFailed, service) => {
         });
 
         waitForFailed = DeviceEventEmitter.addListener(eventFailed, (error) => {
-            if (event.service === service) {
+            if (error && error.service === service) {
                 waitForFailed.remove();
                 waitFor.remove();
                 return reject(error);
@@ -116,14 +116,14 @@ let startHeartbeat = (metadata) => {
 
 let startPing = (metadata) => {
     if (isHeartbeatStarted) {
-        SimpozioBackgroundWorker.updateHeartbeat(updateHeartbeatMetadata(metadata));
+        SimpozioBackgroundWorker.updatePing(updatePingMetadata(metadata));
         return Promise.resolve();
     } else {
         const eventPromise = eventPromiseHelper(EVENT_STARTED, EVENT_START_FAILED, 'ping').then(() => {
             isPingStarted = true;
         });
 
-        SimpozioBackgroundWorker.startHeartbeat(updateHeartbeatMetadata(metadata));
+        SimpozioBackgroundWorker.startPing(updatePingMetadata(metadata));
 
         return eventPromise;
     }
@@ -153,7 +153,7 @@ let stopHeartbeat = () => {
             removeAllListeners();
             isHeartbeatStarted = false;
         });
-        SimpozioBackgroundWorker.stopHeartbeat();
+        SimpozioBackgroundWorker.stopPing();
         return eventPromise;
     }
 };
@@ -166,7 +166,7 @@ let stopPing = () => {
             removeAllListeners();
             isPingStarted= false;
         });
-        SimpozioBackgroundWorker.stopHeartbeat();
+        SimpozioBackgroundWorker.stopPing();
         return eventPromise;
     }
 };
