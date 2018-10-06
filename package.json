@@ -1,6 +1,6 @@
 {
   "name": "react-native-simpozio-background-worker",
-  "version": "0.2.7",
+  "version": "0.2.8",
   "description": "React Native Simpozio Background Worker",
   "main": "index.js",
   "repository": {
@@ -19,7 +19,6 @@
     "url": "https://github.com/simpozio/react-native-simpozio-background-worker#issues"
   },
   "dependencies": {
-    "lodash": "^4.17.5",
-    "react-native": "^0.55.4"
+    "lodash": "^4.17.5"
   }
 }
