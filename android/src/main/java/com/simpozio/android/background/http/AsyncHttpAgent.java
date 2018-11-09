@@ -50,15 +50,11 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
         while (!isInterrupted()) {
             try {
 
-                Bundle bundle = new Bundle();
-                bundle.putString("message", "sending " + i + " ping message...");
-                this.fireEvent(bundle);
+                System.out.println("Sending 'i' ping : " + i);
 
                 Response response = httpClient.newCall(pingRequest).execute();
 
-                bundle = new Bundle();
-                bundle.putString("message", "receiving " + i + "response : " + response.body().string());
-                this.fireEvent(bundle);
+                System.out.println("i : " + i + " response : "+ response.body().string());
 
                 long doubleRequestRoundTrip = (response.receivedResponseAtMillis() - response.sentRequestAtMillis()) * 2;
 
