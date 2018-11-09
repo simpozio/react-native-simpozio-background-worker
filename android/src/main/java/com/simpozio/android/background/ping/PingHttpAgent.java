@@ -127,7 +127,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                 Thread.sleep(pingSeriesDelay);
             } catch (InterruptedException ignored) {
                 this.interrupt();
-            } catch (Exception cause) {
+            } catch (Throwable cause) {
                 this.onPingFailed(cause);
             }
         }
@@ -146,7 +146,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
         }
     }
 
-    private void onPingFailed(Exception cause) {
+    private void onPingFailed(Throwable cause) {
         if (!failed) {
             this.fireEvent(Events.pingFailed(cause));
             this.failed = true;

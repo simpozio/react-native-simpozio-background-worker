@@ -69,7 +69,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
                 }
             } catch (InterruptedException ignored) {
                 this.interrupt();
-            } catch (Exception cause) {
+            } catch (Throwable cause) {
                 this.onHeartbeatFailed(cause);
             }
         }
@@ -116,7 +116,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
         this.lastFailed = System.currentTimeMillis();
     }
 
-    private void onHeartbeatFailed(Exception cause) {
+    private void onHeartbeatFailed(Throwable cause) {
         if (!failed) {
             this.fireEvent(Events.heartbeatFailed(cause));
             this.failed = true;

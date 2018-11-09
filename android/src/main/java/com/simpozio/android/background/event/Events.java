@@ -368,7 +368,7 @@ public final class Events {
         return event;
     }
 
-    public static Bundle heartbeatFailed(Exception cause) {
+    public static Bundle heartbeatFailed(Throwable cause) {
         Bundle event = createEvent(HEARTBEAT_FAILED);
         event.putString("code", "-1");
         event.putString("message", cause.getMessage());
@@ -387,7 +387,7 @@ public final class Events {
      * }
      */
 
-    public static Bundle pingFailed(Exception cause) {
+    public static Bundle pingFailed(Throwable cause) {
         Bundle event = createEvent(PING_FAILED);
         event.putString("code", "-1");
         event.putString("message", cause.getMessage());
