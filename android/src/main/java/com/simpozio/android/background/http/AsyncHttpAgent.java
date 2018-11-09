@@ -49,8 +49,7 @@ public abstract class AsyncHttpAgent extends Thread implements EventPublisher {
 
         while (!isInterrupted()) {
             try {
-
-                Response response = httpClient.newCall(prepareRequest()).execute();
+                Response response = httpClient.newCall(pingRequest).execute();
 
                 long doubleRequestRoundTrip = (response.receivedResponseAtMillis() - response.sentRequestAtMillis()) * 2;
 
