@@ -147,7 +147,7 @@ public final class Events {
      * }
      */
 
-    public static Bundle serverTimestamp(DateTime timestamp, int deviationMillis) {
+    public static Bundle serverTimestamp(DateTime timestamp, long deviationMillis) {
         Bundle event = createEvent(SERVER_TIMESTAMP);
         event.putString(DEVIATION, String.valueOf(deviationMillis));
         event.putString(SERVER_TIMESTAMP, timestamp.toString());

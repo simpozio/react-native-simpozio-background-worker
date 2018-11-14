@@ -1,6 +1,6 @@
 {
   "name": "react-native-simpozio-background-worker",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "React Native Simpozio Background Worker",
   "main": "index.js",
   "repository": {
@@ -14,7 +14,9 @@
     "background"
   ],
   "author": "Dmitriy Korobov",
-  "contributors": ["Vadim Patsev"],
+  "contributors": [
+    "Vadim Patsev"
+  ],
   "bugs": {
     "url": "https://github.com/simpozio/react-native-simpozio-background-worker#issues"
   },
