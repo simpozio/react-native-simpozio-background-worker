@@ -117,7 +117,10 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                         }
                         try {
                             JSONObject body = new JSONObject(response.body().string());
-                            fireEvent(Events.serverTimestamp(DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2), avg));
+
+                            long delta = System.currentTimeMillis() - DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2).getMillis();
+
+                            fireEvent(Events.serverTimestamp(DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2), delta));
                             response.close();
                         } catch (Exception e) {
                             this.onException(e);
