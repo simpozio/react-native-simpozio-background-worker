@@ -45,6 +45,7 @@ public class PingService extends Service implements EventPublisher {
     }
 
    private void updateAgent(Intent intent) {
+       this.pingAgent.debug = intent.getBooleanExtra("debug", false);
        this.pingAgent.pingCount.set(intent.getIntExtra("count", 10));
        this.pingAgent.pingDelay.set(intent.getIntExtra("delay", 5000)); // 5 sec
        this.pingAgent.pingSeriesDelay.set(intent.getIntExtra("seriesDelay", 300000)); // 5 min

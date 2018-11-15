@@ -22,6 +22,7 @@ public final class Events {
     private static final String STOPPED = "stopped";
     private static final String RESUME = "resume";
     private static final String DEVIATION = "deviation";
+    private static final String DEBUG = "debug";
 
     private static final String SERVICE = "service";
 
@@ -33,6 +34,12 @@ public final class Events {
 
     private Events() {
         throw new UnsupportedOperationException();
+    }
+
+    public static Bundle debugPingService (String message) {
+        Bundle event = createEvent(DEBUG);
+        event.putString("message", message);
+        return acceptPingService(event);
     }
 
     /**

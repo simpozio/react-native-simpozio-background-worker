@@ -21,6 +21,7 @@ import okhttp3.Response;
 
 public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL {
 
+    public boolean debug;
     public final AtomicLong pingDelay = new AtomicLong();
     public final AtomicInteger pingCount = new AtomicInteger();
     public final AtomicLong pingSeriesDelay = new AtomicLong();
@@ -77,10 +78,18 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                     Average average = new Average(pingCount);
 
                     for (int i = 0; i < pingCount; i += 1) {
+
+                        debug("Sending ping #" + i);
+
                         Response response = httpClient.newCall(pingRequest).execute();
+
+                        debug("Ping #" + i + " response : " + response.body().string());
+
                         if (response.isSuccessful()) {
-                            average.add(response.receivedResponseAtMillis() - response.sentRequestAtMillis());
+                            long delta = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
+                            average.add(delta);
                             this.onSuccess();
+                            debug("Ping #" + i + " delta : " + delta);
                         } else {
                             i -= 1;
                             this.onPingFailed(response.code(), response.message());
@@ -103,6 +112,9 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
 
                         long roundTrip = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
 
+                        debug("Control checkpoint response : " + response.body().string());
+                        debug("Control checkpoint round trip time : " + roundTrip);
+
                         if ((roundTrip / avg) > 1.3) {
                             try {
                                 response.close();
@@ -110,8 +122,10 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                                 this.onException(e);
                             }
                             if ((retryCount -= 1) <= 0) {
+                                debug("Control checkpoint round trip time is more than 30% dev. Retry #" + retryCount);
                                 break retry;
                             } else {
+                                debug("All control checkpoints round trip time is more than 30% dev. Repeat ping series");
                                 break repeatRequest;
                             }
                         }
@@ -140,6 +154,12 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
     @Override
     public void fireEvent(Bundle event) {
         this.eventPublisher.fireEvent(event);
+    }
+
+    private void debug (String message) {
+        if (this.debug) {
+            this.fireEvent(Events.debugPingService(message));
+        }
     }
 
     private void onSuccess() {
@@ -182,7 +202,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
         this.fireEvent(Events.pingStopped(uptime));
     }
 
-    public static class Average {
+    public class Average {
 
         private final List<Long> series;
 
@@ -216,17 +236,25 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
         public int value() {
 
             double avg = avg();
+            double sko = (dev(avg) / avg);
 
-            if ((dev(avg) / avg) > 0.3) {
+            debug("Avg : " + avg + " Sko : " + sko + " Delta series : " + series.toString());
+
+            if (sko > 0.3) {
                 long total = 0L;
                 int count = 0;
                 for (long sample : series) {
                     if ((sample / avg) <= 1.3) {
                         total += sample;
                         count += 1;
+                    } else {
+                        debug("Removing peak sample : " + sample);
                     }
                 }
                 avg = (total / count);
+
+                debug("Recalculated avg : " + avg);
+
             }
 
             return (int) avg;

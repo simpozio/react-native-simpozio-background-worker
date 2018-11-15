@@ -239,6 +239,7 @@ public final class SimpozioBackgroundWorker extends ReactContextBaseJavaModule i
     }
 
     private static Intent acceptPingExtra(ReadableMap metadata, Intent metadataIntent) {
+        metadataIntent.putExtra("debug", metadata.getBoolean("debug"));
         metadataIntent.putExtra("delay", metadata.getInt("delay"));
         metadataIntent.putExtra("baseUrl", metadata.getString("baseUrl"));
         metadataIntent.putExtra("count", metadata.getInt("count"));
