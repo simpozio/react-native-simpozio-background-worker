@@ -72,6 +72,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                 int pingCount = this.pingCount.get();
                 long pingDelay = this.pingDelay.get();
                 long pingSeriesDelay = this.pingSeriesDelay.get();
+                String responseBody;
 
                 retry : {
 
@@ -83,7 +84,9 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
 
                         Response response = httpClient.newCall(pingRequest).execute();
 
-                        debug("Ping #" + i + " response : " + response.body().string());
+                        responseBody = response.body().string();
+
+                        debug("Ping #" + i + " response : " + responseBody);
 
                         if (response.isSuccessful()) {
                             long delta = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
@@ -111,8 +114,9 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                         Response response = httpClient.newCall(pingRequest).execute();
 
                         long roundTrip = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
+                        responseBody = response.body().string();
 
-                        debug("Control checkpoint response : " + response.body().string());
+                        debug("Control checkpoint response : " + body);
                         debug("Control checkpoint round trip time : " + roundTrip);
 
                         if ((roundTrip / avg) > 1.3) {
@@ -130,7 +134,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                             }
                         }
                         try {
-                            JSONObject body = new JSONObject(response.body().string());
+                            JSONObject body = new JSONObject(responseBody);
 
                             long delta = System.currentTimeMillis() - DateTime.parse(body.getString("timestamp")).plusMillis(avg / 2).getMillis();
 
