@@ -116,7 +116,7 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                         long roundTrip = response.receivedResponseAtMillis() - response.sentRequestAtMillis();
                         responseBody = response.body().string();
 
-                        debug("Control checkpoint response : " + body);
+                        debug("Control checkpoint response : " + responseBody);
                         debug("Control checkpoint round trip time : " + roundTrip);
 
                         if ((roundTrip / avg) > 1.3) {
