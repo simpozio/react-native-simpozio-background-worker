@@ -66,12 +66,16 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
 
         OkHttpClient httpClient = new OkHttpClient();
 
+        long pingDelay = 0x0;
+        int pingCount = 0x0;
+        long pingSeriesDelay = 0x0;
+
         while (!interrupted()) {
             try {
 
-                int pingCount = this.pingCount.get();
-                long pingDelay = this.pingDelay.get();
-                long pingSeriesDelay = this.pingSeriesDelay.get();
+                pingCount = this.pingCount.get();
+                pingDelay = this.pingDelay.get();
+                pingSeriesDelay = this.pingSeriesDelay.get();
                 String responseBody;
 
                 retry : {
@@ -150,6 +154,11 @@ public class PingHttpAgent extends Thread implements EventPublisher, ServiceURL 
                 this.interrupt();
             } catch (Throwable cause) {
                 this.onPingFailed(cause);
+                try {
+                    Thread.sleep(pingDelay);
+                } catch (InterruptedException e) {
+                    this.interrupt();
+                }
             }
         }
         this.finish(System.currentTimeMillis() - startupPoint);
